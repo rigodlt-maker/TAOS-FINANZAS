@@ -8,7 +8,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   return (
     <main className="grid min-h-screen place-items-center px-4">
       <Card className="w-full max-w-sm">
-        <CardTitle className="text-xl">Asesor Financiero</CardTitle>
+        <CardTitle className="text-xl">Administrador Tao</CardTitle>
         {enviado ? (
           <CardDescription className="mt-3">
             Te enviamos un enlace para entrar. Ábrelo desde este mismo dispositivo y navegador.

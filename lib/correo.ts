@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const DE = process.env.RESEND_FROM || "Asesor Financiero <onboarding@resend.dev>";
+const DE = process.env.RESEND_FROM || "Administrador Tao <onboarding@resend.dev>";
 
 export async function enviarCorreo(asunto: string, html: string) {
   const llave = process.env.RESEND_API_KEY;
@@ -14,7 +14,7 @@ export async function enviarCorreo(asunto: string, html: string) {
 // Plantilla HTML sencilla en blanco y negro
 export function plantilla(titulo: string, bloques: string[], urlApp?: string) {
   const enlace = urlApp
-    ? `<p style="text-align:center;margin:20px 0 0"><a href="${urlApp}" style="color:#18181b;font-weight:600">Abrir Asesor Financiero →</a></p>`
+    ? `<p style="text-align:center;margin:20px 0 0"><a href="${urlApp}" style="color:#18181b;font-weight:600">Abrir Administrador Tao →</a></p>`
     : "";
   return `<!doctype html><html><body style="margin:0;padding:24px;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#18181b">
 <div style="max-width:560px;margin:0 auto">

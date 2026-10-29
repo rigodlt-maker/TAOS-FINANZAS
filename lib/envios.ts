@@ -121,7 +121,7 @@ export function enlaceCalendario(p: Pick<Prestamo, "persona" | "monto" | "fecha_
     action: "TEMPLATE",
     text: `Cobrar ${dinero(p.monto)} a ${p.persona}`,
     dates: `${dia}/${siguiente}`,
-    details: `Préstamo registrado en tu app de Finanzas TAOS.${p.nota ? ` Nota: ${p.nota}` : ""}`,
+    details: `Préstamo registrado en tu app Administrador Tao.${p.nota ? ` Nota: ${p.nota}` : ""}`,
   });
   return `https://calendar.google.com/calendar/render?${q.toString()}`;
 }

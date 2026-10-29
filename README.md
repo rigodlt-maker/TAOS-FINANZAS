@@ -1,10 +1,10 @@
-# Finanzas · TAOS
+# Administrador Tao · TAOS
 
 Tu dinero en orden: gastos en una línea, presupuesto por categoría, metas de ahorro, pagos de tarjeta con aviso 7 y 2 días antes, préstamos y lectura de los correos de tu banco. Funciona sin IA.
 
 ## Instalar
 
-[![Instalar en Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frigodlt-maker%2Ftaos-finanzas&project-name=finanzas&repository-name=finanzas&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,ALLOWED_EMAIL,CRON_SECRET&envDescription=Datos%20de%20tu%20proyecto%20de%20Supabase%2C%20tu%20correo%20y%20un%20texto%20al%20azar%20para%20los%20avisos)
+[![Instalar en Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frigodlt-maker%2Ftaos-finanzas&project-name=administrador-tao&repository-name=administrador-tao&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,ALLOWED_EMAIL,CRON_SECRET&envDescription=Datos%20de%20tu%20proyecto%20de%20Supabase%2C%20tu%20correo%20y%20un%20texto%20al%20azar%20para%20los%20avisos)
 
 1. Toca el botón y entra con GitHub.
 2. Pega las variables (abajo) y toca **Deploy**.
@@ -32,3 +32,10 @@ npm test
 ```
 
 Parte de **TAOS**, un sistema de 4 apps personales para organizar tu vida. Herramienta de organización personal: no es asesoría médica, financiera ni legal.
+
+## Soporte y modificaciones
+
+- El soporte de TAOS cubre **la versión original** de esta app, instalada siguiendo la guía.
+- Si cambias el código (tú, otra persona o una IA), la app lo detecta al publicarse y muestra el aviso **“versión modificada”**. Puede dejar de funcionar como se diseñó y ya no tiene soporte.
+- Para instalar o arreglar un error de configuración **no necesitas cambiar código**: casi siempre es una variable en Vercel o el SQL de Supabase.
+- Tus datos viven en tus propias cuentas (Supabase, Vercel y Google). Nadie más puede verlos.

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Asesor Financiero",
-    short_name: "Finanzas",
+    name: "Administrador Tao",
+    short_name: "Admin Tao",
     description: "Mis gastos, presupuesto, metas de ahorro y pagos",
     start_url: "/",
     display: "standalone",

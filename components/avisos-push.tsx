@@ -90,7 +90,7 @@ export function AvisosPush() {
   if (estado === "bloqueado")
     return (
       <p className="text-sm text-muted-foreground">
-        Bloqueaste las notificaciones para esta app. Actívalas en los ajustes del celular (Notificaciones → Finanzas) o en el candado junto a la dirección, y
+        Bloqueaste las notificaciones para esta app. Actívalas en los ajustes del celular (Notificaciones → Admin Tao) o en el candado junto a la dirección, y
         recarga la página.
       </p>
     );

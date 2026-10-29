@@ -1,6 +1,6 @@
 "use client";
 
-// Piezas compartidas del estilo TAOS (iguales en Finanzas y Segundo Cerebro):
+// Piezas compartidas del estilo TAOS (iguales en Administrador Tao y Segundo Cerebro):
 // barra de navegación inferior y botón flotante para la acción principal.
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";

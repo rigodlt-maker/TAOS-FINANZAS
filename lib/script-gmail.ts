@@ -30,7 +30,7 @@ export const REMITENTES = [
 
 // Script de Google Apps Script que vive en tu cuenta de Google: cada 10 minutos busca avisos del banco y los manda a la app
 export function scriptGmail(urlApp: string, clave: string): string {
-  return `// Finanzas TAOS: manda a tu app los avisos de tu banco que llegan a Gmail.
+  return `// Administrador Tao (TAOS): manda a tu app los avisos de tu banco que llegan a Gmail.
 // 1) Pega todo esto en script.google.com  2) Elige la función "instalar" y toca Ejecutar  3) Da permiso.
 const URL_APP = "${urlApp}/api/correos";
 const CLAVE = "${clave}";

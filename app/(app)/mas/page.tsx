@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChartPie, ChevronRight, FileUp, HandCoins, Inbox, Mail, Settings, Target } from "lucide-react";
+import { ArrowLeftRight, ChartPie, FileUp, HandCoins, Inbox, Mail, Settings, Target } from "lucide-react";
 import { dinero } from "@/lib/formato";
 import { abiertos, pendiente } from "@/lib/envios";
 import Link from "next/link";
@@ -12,28 +12,32 @@ export default async function Mas() {
   const avisos = await repo.correos({ estado: "pendiente" }).then((x) => x.length).catch(() => 0);
   const teDeben = await repo.prestamos().then((ps) => abiertos(ps).reduce((t, p) => t + pendiente(p), 0)).catch(() => 0);
   const opciones = [
-    { ruta: "/entre-cuentas", nombre: "Entre cuentas", detalle: "Pagar tarjetas y mover dinero entre tus cuentas", icono: ArrowLeftRight },
-    { ruta: "/correos", nombre: "Avisos del banco", detalle: avisos ? `${avisos} por confirmar` : "Lo que tu banco te manda a Gmail, registrado solo", icono: Mail },
-    { ruta: "/prestamos", nombre: "Préstamos", detalle: teDeben ? `Te deben ${dinero(teDeben)}` : "Dinero que prestaste y te van a regresar", icono: HandCoins },
-    { ruta: "/presupuesto", nombre: "Presupuesto", detalle: "Cómo vas en cada categoría y tus gráficas", icono: ChartPie },
-    { ruta: "/metas", nombre: "Metas de ahorro", detalle: "Cuánto llevas y cuánto te falta", icono: Target },
-    { ruta: "/revisar", nombre: "Por revisar", detalle: porRevisar ? `${porRevisar} movimientos sin categoría` : "Todo al día", icono: Inbox },
-    { ruta: "/agregar", nombre: "Agregar e importar", detalle: "Captura rápida, a mano o desde un estado de cuenta", icono: FileUp },
-    { ruta: "/ajustes", nombre: "Ajustes", detalle: "Cuentas, categorías, reglas y contraseña", icono: Settings },
+    { ruta: "/entre-cuentas", nombre: "Pagar tarjeta o mover dinero", detalle: "Entre tus propias cuentas", icono: ArrowLeftRight },
+    { ruta: "/revisar", nombre: "Por revisar", detalle: porRevisar ? `${porRevisar} sin categoría` : "Todo al día", icono: Inbox, alerta: porRevisar > 0 },
+    { ruta: "/metas", nombre: "Metas de ahorro", detalle: "Cuánto llevas y cuánto falta", icono: Target },
+    { ruta: "/prestamos", nombre: "Préstamos", detalle: teDeben ? `Te deben ${dinero(teDeben)}` : "Lo que prestaste", icono: HandCoins },
+    { ruta: "/correos", nombre: "Avisos del banco", detalle: avisos ? `${avisos} por confirmar` : "Desde tu Gmail", icono: Mail, alerta: avisos > 0 },
+    { ruta: "/agregar", nombre: "Agregar o importar", detalle: "A mano o estado de cuenta", icono: FileUp },
+    { ruta: "/presupuesto", nombre: "Presupuesto", detalle: "Categorías y gráficas", icono: ChartPie },
+    { ruta: "/ajustes", nombre: "Ajustes", detalle: "Cuentas, categorías, avisos y contraseña", icono: Settings },
   ];
   return (
-    <div className="grid gap-3">
-      <Titulo>Más</Titulo>
-      {opciones.map((o) => (
-        <Link key={o.ruta} href={o.ruta} className="flex min-h-18 items-center gap-4 rounded-2xl border bg-card px-4 py-3 active:bg-muted">
-          <o.icono className="size-6 shrink-0 text-primary" />
-          <span className="min-w-0 flex-1">
-            <span className="block font-medium">{o.nombre}</span>
-            <span className="block truncate text-sm text-muted-foreground">{o.detalle}</span>
-          </span>
-          <ChevronRight className="size-5 text-muted-foreground" />
-        </Link>
-      ))}
+    <div className="grid gap-4">
+      <Titulo detalle="Todo lo que puedes hacer, a un toque. ¿Dudas? Toca el botón dorado de Tao arriba.">Menú</Titulo>
+      <div className="grid grid-cols-2 gap-3">
+        {opciones.map((o) => (
+          <Link key={o.ruta} href={o.ruta} className="relative flex min-h-32 flex-col justify-between gap-3 rounded-2xl border bg-card p-4 active:scale-[0.98] active:bg-muted">
+            <span className="flex size-11 items-center justify-center rounded-xl bg-primary/15">
+              <o.icono className="size-6 text-primary" />
+            </span>
+            {o.alerta && <span className="absolute top-4 right-4 size-2.5 rounded-full bg-primary" />}
+            <span className="min-w-0">
+              <span className="block leading-tight font-semibold">{o.nombre}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{o.detalle}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

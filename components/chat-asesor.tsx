@@ -3,6 +3,7 @@
 import { ArrowUp, Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { cn } from "@/lib/utils";
 import { PREGUNTAS_EJEMPLO } from "@/lib/asesor";
 import type { PropuestaAjuste } from "@/lib/ajuste-chat";
 import type { PropuestaCobro, PropuestaDeposito, PropuestaEnvio } from "@/lib/envios";
@@ -18,7 +19,7 @@ type Respuesta = { respuesta?: string } & Tarjetas;
 const MAS_EJEMPLOS = ["Pagué $30 de tamales con efectivo", "Pagué la tarjeta Palacio de Hierro con Revolut"];
 
 // Chat con Tao, tu asesor TAOS: preguntas en lenguaje normal, respuestas con tus datos
-export function ChatAsesor() {
+export function ChatAsesor({ enHoja = false }: { enHoja?: boolean }) {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [texto, setTexto] = useState("");
   const [pendiente, iniciar] = useTransition();
@@ -82,10 +83,13 @@ export function ChatAsesor() {
           </div>
         </div>
       ))}
-      <div ref={final} className="scroll-mb-44" />
-      {/* Caja de pregunta fija abajo, encima de la barra: al alcance del pulgar */}
+      <div ref={final} className={enHoja ? "scroll-mb-20" : "scroll-mb-44"} />
+      {/* Caja de pregunta abajo, al alcance del pulgar: fija encima de la barra, o al pie de la hoja de Tao */}
       <form
-        className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t bg-background/95 py-3 backdrop-blur"
+        className={cn(
+          "z-20 border-t bg-background/95 py-3 backdrop-blur",
+          enHoja ? "sticky bottom-0 -mx-4" : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))]",
+        )}
         onSubmit={(e) => {
           e.preventDefault();
           enviar(texto);

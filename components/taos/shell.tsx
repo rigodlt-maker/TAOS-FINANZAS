@@ -3,7 +3,7 @@
 // Piezas compartidas del estilo TAOS (iguales en Administrador Tao y Segundo Cerebro):
 // barra de navegación inferior y botón flotante para la acción principal.
 import type { LucideIcon } from "lucide-react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -25,30 +25,39 @@ export function BarraInferior({ secciones }: { secciones: Seccion[] }) {
           const on = activa(actual, s);
           return (
             <li key={s.ruta}>
-              <Link
-                href={s.ruta}
-                aria-current={on ? "page" : undefined}
-                className={cn(
-                  "relative flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground transition-colors",
-                  on && "font-semibold text-primary",
-                )}
-              >
-                <span className={cn("absolute top-0 h-0.5 w-8 rounded-full", on ? "bg-primary" : "bg-transparent")} />
-                <span className="relative">
-                  <s.icono className="size-6" strokeWidth={on ? 2.2 : 1.8} />
-                  {!!s.insignia && (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-bold text-primary-foreground">
-                      {s.insignia > 99 ? "99+" : s.insignia}
-                    </span>
-                  )}
-                </span>
-                {s.nombre}
+              <Link href={s.ruta} aria-current={on ? "page" : undefined} className="block">
+                <ContenidoSeccion s={s} on={on} />
               </Link>
             </li>
           );
         })}
       </ul>
     </nav>
+  );
+}
+
+// Dentro del enlace para saber si se está abriendo: así cada toque se nota al instante, aunque la pantalla tarde
+function ContenidoSeccion({ s, on }: { s: Seccion; on: boolean }) {
+  const { pending } = useLinkStatus();
+  const marcado = on || pending;
+  return (
+    <span
+      className={cn(
+        "relative flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground transition-colors active:bg-muted",
+        marcado && "font-semibold text-primary",
+      )}
+    >
+      <span className={cn("absolute top-0 h-0.5 w-8 rounded-full", marcado ? "bg-primary" : "bg-transparent", pending && "animate-pulse")} />
+      <span className={cn("relative", pending && "animate-pulse")}>
+        <s.icono className="size-6" strokeWidth={marcado ? 2.2 : 1.8} />
+        {!!s.insignia && (
+          <span className="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-bold text-primary-foreground">
+            {s.insignia > 99 ? "99+" : s.insignia}
+          </span>
+        )}
+      </span>
+      {s.nombre}
+    </span>
   );
 }
 

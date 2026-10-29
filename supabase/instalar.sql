@@ -1,7 +1,7 @@
 -- Instalación completa de la base de datos. Pega todo en Supabase › SQL Editor y toca Run.
 
 -- ===== 0001_esquema.sql =====
--- Asesor Financiero: esquema inicial
+-- Administrador Tao: esquema inicial
 -- Cada tabla tiene user_id y Row Level Security: cada fila solo es visible para su dueño.
 
 

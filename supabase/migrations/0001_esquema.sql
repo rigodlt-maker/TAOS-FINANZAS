@@ -1,4 +1,4 @@
--- Asesor Financiero: esquema inicial
+-- Administrador Tao: esquema inicial
 -- Cada tabla tiene user_id y Row Level Security: cada fila solo es visible para su dueño.
 
 

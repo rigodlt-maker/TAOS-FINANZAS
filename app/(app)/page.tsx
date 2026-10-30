@@ -3,7 +3,8 @@ import Link from "next/link";
 import { DineroLibre } from "@/components/dinero-libre";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progreso } from "@/components/ui/campos";
-import { dinero, dineroCorto, fechaCorta, hoyLocal, mesDe, nombreMes, rangoDelMes } from "@/lib/formato";
+import { dinero, dineroCorto, fechaCorta, hoyLocal, mesDe, nombreMes, rangoDelMes, sumarDias } from "@/lib/formato";
+import { detectarHormiga } from "@/lib/hormiga";
 import { pagosDeTarjeta, pagosProximos } from "@/lib/pagos";
 import { porcentajeDelMes, resumenPorCategoria } from "@/lib/presupuesto";
 import { obtenerRepo } from "@/lib/sesion";
@@ -18,13 +19,15 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const hoy = hoyLocal();
   const mes = mesDe(hoy);
   const repo = await obtenerRepo();
-  const [categorias, movimientos, pagos, cuentas, porRevisar] = await Promise.all([
+  const [categorias, movimientos, pagos, cuentas, porRevisar, ultimos30] = await Promise.all([
     repo.categorias(),
     repo.movimientos({ desde: rangoDelMes(mes).inicio }),
     repo.pagos(),
     repo.cuentas(),
     repo.contarPorRevisar(),
+    repo.movimientos({ desde: sumarDias(hoyLocal(), -30) }),
   ]);
+  const hormiga = detectarHormiga(ultimos30, categorias, hoy);
   const avisosPendientes = await repo.correos({ estado: "pendiente" }).then((x) => x.length).catch(() => 0);
   const ctx = await contextoTarjetas(repo, hoy);
   const teDeben = await repo.prestamos().then((ps) => abiertos(ps).reduce((t, p) => t + pendiente(p), 0)).catch(() => 0);
@@ -87,6 +90,35 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
           </div>
         </div>
       </Card>
+
+      {hormiga.grupos.length > 0 && (
+        <Card className="grid gap-3">
+          <div>
+            <CardTitle>🐜 Gastos hormiga</CardTitle>
+            <CardDescription className="mt-1">
+              En 30 días se te fueron <strong className="text-foreground">{dinero(hormiga.total)}</strong> en gastitos que se repiten. Al año serían{" "}
+              <strong className="text-primary">{dineroCorto(hormiga.alAnio)}</strong>.
+            </CardDescription>
+          </div>
+          <ul className="divide-y">
+            {hormiga.grupos.slice(0, 3).map((g) => (
+              <li key={g.nombre} className="flex min-h-12 items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{g.nombre}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {g.veces} veces · {dinero(g.promedio)} en promedio
+                  </span>
+                </span>
+                <span className="text-right">
+                  <span className="block font-semibold">{dinero(g.total)}</span>
+                  <span className="block text-xs text-muted-foreground">{dineroCorto(g.alAnio)} al año</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">Compras de hasta $250 que se repiten 3 veces o más en el mismo lugar.</p>
+        </Card>
+      )}
 
       {porRevisar > 0 && (
         <Link href="/revisar" className="flex min-h-16 items-center gap-3 rounded-2xl border border-primary/50 bg-card px-4 active:bg-muted">

@@ -1,5 +1,6 @@
 // Asesor por chat, sin IA: entiende la pregunta con reglas y contesta con tus propios datos.
 // No da recomendaciones de inversión; solo gasto, pagos, tarjetas, presupuesto y metas.
+import { detectarHormiga } from "./hormiga";
 import { diasDelMes, diasEntre, dinero, dineroCorto, fechaCorta, mesDe, nombreMes, normalizar, rangoDelMes, sumarDias, sumarMeses } from "./formato";
 import { analizarMeta } from "./metas";
 import { pagosDeTarjeta, pagosProximos } from "./pagos";
@@ -29,6 +30,7 @@ const masNuevas = (n: number) => (n > 0.5 ? ` (+${dineroCorto(n)} de compras nue
 
 export const PREGUNTAS_EJEMPLO = [
   "¿Cuánto dinero tengo en mis cuentas?",
+  "¿Cuáles son mis gastos hormiga?",
   "¿En qué gasto más?",
   "¿Qué tarjeta debo pagar pronto?",
   "Voy a comprar algo de $3,000, ¿qué tarjeta uso?",
@@ -556,6 +558,7 @@ const AYUDA = `Puedo contestarte casi todo sobre tu dinero. Por ejemplo:\n\n${[
 
 export type Intencion =
   | "inversion"
+  | "hormiga"
   | "ayuda"
   | "recomendar"
   | "saldos"
@@ -601,6 +604,7 @@ const REGLAS: [Intencion, RegExp, number][] = [
   ["presupuesto", /\bpresupuesto\w*\b|\bcuanto puedo gastar\b|\bme alcanza\b|\balcanza\b|\blimite de gasto\b|\bme pase\b|\bexcedi\w*\b|\bsobrepas\w*\b|\bcuanto me queda\b/, 5],
   ["ingresos", /\b(ingres\w*|gane|ganado|me entro|me entraron|entraron|cobre|me pagaron|recibi|nomina|sueldo|salario|ventas|vendi|depositaron)\b/, 5],
   ["metas", /\b(metas?|ahorrar para|objetivos?|llevo ahorrado|mi ahorro|ahorros)\b/, 5],
+  ["hormiga", /\b(hormigas?|gastitos?|gastos? (pequenos|chiquitos|chicos|hormiga)|antojos?|se me va en (cosas|pura) )/, 10],
   ["suscripciones", /\b(suscrip\w*|recurrent\w*|cada mes me cobran|cargos? (fijos|automaticos|recurrentes)|me cobran|domiciliad\w*|que pago cada mes|gastos fijos|pagos fijos|plataformas)\b/, 7],
   ["revisar", /\b(por revisar|pendientes|sin categoria|sin clasificar|revisar)\b/, 6],
   ["resumen", /\b(resumen|como (voy|estoy|ando|vamos|van mis finanzas)|situacion|panorama|estado (financiero|de mis finanzas)|mis finanzas|reporte|repaso|que tal voy)\b/, 5],
@@ -679,6 +683,15 @@ export function comercioMencionado(p: string, movimientos: Movimiento[]): string
 
 const QUE_PALABRAS_SON_DE_CUENTA = /\b(debo|deuda|liquid\w*|pag\w*|saldo|tengo|traigo|hay|falta|vence|corte|limite|disponible|queda)\b/;
 
+// Gastos hormiga: lo chico que se repite y cuánto sería en un año
+function gastosHormiga(d: DatosAsesor): string {
+  const h = detectarHormiga(d.movimientos, d.categorias, d.hoy);
+  if (!h.grupos.length) return "No veo gastos hormiga en los últimos 30 días. 🎉 (Busco compras de hasta $250 que se repiten 3 veces o más en el mismo lugar.)";
+  const lista = h.grupos.slice(0, 5).map((g) => `- **${g.nombre}**: ${g.veces} veces, ${dinero(g.total)} (≈ ${dineroCorto(g.alAnio)} al año)`);
+  const mayor = h.grupos[0];
+  return `En los últimos 30 días se te fueron **${dinero(h.total)}** en gastos hormiga. A ese ritmo serían **${dineroCorto(h.alAnio)} al año**.\n\n${lista.join("\n")}\n\nSi bajas **${mayor.nombre}** a la mitad, ahorras unos **${dineroCorto(mayor.alAnio / 2)} al año**. Puedes crear una meta de ahorro con eso.`;
+}
+
 export function responderAsesor(pregunta: string, d: DatosAsesor): string {
   const p = normalizar(pregunta);
   if (!p) return AYUDA;
@@ -717,6 +730,8 @@ export function responderAsesor(pregunta: string, d: DatosAsesor): string {
       return porRevisar(d);
     case "suscripciones":
       return suscripciones(d);
+    case "hormiga":
+      return gastosHormiga(d);
     case "metas":
       if (cuentas.length && !/meta/.test(p)) return deUnaCuenta(cuentas, d);
       return metas(d);

@@ -86,6 +86,9 @@ export function generarEjemplo(hoy = hoyLocal()): DatosEjemplo {
     for (const d of [2, 6, 9, 13, 16, 20, 23, 27]) {
       agregar(dia(d), "TAQUERIA EL PASTOR", "Taquería El Pastor", entre(120, esActual ? 520 : 330), "Comida fuera", azar() > 0.5 ? "Efectivo" : "BBVA Débito");
     }
+    // Gastos hormiga: cafés y antojos chicos que se repiten
+    for (const d of [1, 4, 8, 11, 15, 19, 22, 26]) agregar(dia(d), "STARBUCKS COFFEE", "Starbucks", entre(65, 98), "Comida fuera", "Nu Crédito");
+    for (const d of [3, 7, 12, 18, 25]) agregar(dia(d), "OXXO TIENDA 2231", "Oxxo", entre(35, 85), "Comida fuera", "Efectivo");
     // La remodelación pesa más este mes (para ver una categoría excedida)
     agregar(dia(7), "HOME DEPOT CENTRO", "Home Depot", entre(esActual ? 2600 : 900, esActual ? 3200 : 1800), "Casa y remodelación", "Nu Crédito");
     if (esActual) agregar(dia(9), "COMEX PINTURAS", "Comex", 1380, "Casa y remodelación", "Nu Crédito");

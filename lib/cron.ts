@@ -1,13 +1,20 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { repoMemoria } from "./datos/memoria";
 import type { Repo } from "./datos/repo";
 import { repoSupabase } from "./datos/supabase";
 import { clienteAdmin, idDelDueno } from "./supabase/admin";
 import { supabaseConfigurado } from "./supabase/config";
 
+// Compara claves sin que el tiempo de respuesta delate cuántos caracteres coinciden
+export function mismaClave(recibida: string | null, esperada: string): boolean {
+  const huella = (texto: string) => createHash("sha256").update(texto).digest();
+  return timingSafeEqual(huella(recibida ?? ""), huella(esperada));
+}
+
 // Los crons de Vercel mandan "Authorization: Bearer <CRON_SECRET>"
 export function cronAutorizado(req: Request): boolean {
   const secreto = process.env.CRON_SECRET;
-  return !!secreto && req.headers.get("authorization") === `Bearer ${secreto}`;
+  return !!secreto && mismaClave(req.headers.get("authorization"), `Bearer ${secreto}`);
 }
 
 // Los crons corren sin sesión: usan la llave secreta y los datos del dueño

@@ -1,4 +1,4 @@
-import { repoDelDueno } from "@/lib/cron";
+import { mismaClave, repoDelDueno } from "@/lib/cron";
 import { procesarCorreos, type CorreoEntrante } from "@/lib/correos";
 import { avisoDeCorreos, enviarPush } from "@/lib/push";
 import { claveCorreos } from "@/lib/script-gmail";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // El script de Gmail manda "Authorization: Bearer <clave>"
 function autorizado(req: Request) {
   const clave = claveCorreos();
-  return !!clave && clave.length >= 12 && req.headers.get("authorization") === `Bearer ${clave}`;
+  return !!clave && clave.length >= 12 && mismaClave(req.headers.get("authorization"), `Bearer ${clave}`);
 }
 
 // Prueba de conexión desde el script

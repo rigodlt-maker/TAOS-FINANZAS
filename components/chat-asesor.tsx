@@ -9,7 +9,8 @@ import type { PropuestaAjuste } from "@/lib/ajuste-chat";
 import type { PropuestaCobro, PropuestaDeposito, PropuestaEnvio } from "@/lib/envios";
 import type { PropuestaGasto } from "@/lib/gasto-chat";
 import type { PropuestaMovimiento } from "@/lib/transferencias";
-import { Markdown } from "./markdown";
+import { Microfono } from "./taos/microfono";
+import { RespuestaTao } from "./taos/respuesta-tao";
 import { Button } from "./ui/button";
 
 type Tarjetas = { propuesta?: PropuestaMovimiento; gasto?: PropuestaGasto; ajuste?: PropuestaAjuste; envio?: PropuestaEnvio; cobro?: PropuestaCobro; deposito?: PropuestaDeposito };
@@ -73,7 +74,11 @@ export function ChatAsesor({ enHoja = false }: { enHoja?: boolean }) {
         <div key={i} className="grid gap-2">
           <p className="max-w-[85%] justify-self-end rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-primary-foreground">{m.pregunta}</p>
           <div className="max-w-[95%] rounded-2xl rounded-bl-sm border bg-card px-4 py-3 text-[15px]">
-            {m.respuesta === null ? <Loader2 className="size-5 animate-spin text-muted-foreground" /> : <Markdown texto={m.respuesta} />}
+            {m.respuesta === null ? (
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            ) : (
+              <RespuestaTao texto={m.respuesta} onOpcion={i === mensajes.length - 1 && !pendiente ? enviar : undefined} />
+            )}
             {m.propuesta && <ConfirmarMovimiento propuesta={m.propuesta} />}
             {m.gasto && <ConfirmarGasto gasto={m.gasto} />}
             {m.ajuste && <ConfirmarAjuste ajuste={m.ajuste} />}
@@ -104,6 +109,7 @@ export function ChatAsesor({ enHoja = false }: { enHoja?: boolean }) {
             aria-label="Tu pregunta"
             className="h-12 w-full min-w-0 rounded-full border bg-card px-5 text-base focus-visible:outline-2 focus-visible:outline-primary"
           />
+          <Microfono onTexto={enviar} onParcial={setTexto} />
           <Button type="submit" size="icon" className="size-12 shrink-0 rounded-full" disabled={pendiente || !texto.trim()} aria-label="Preguntar">
             {pendiente ? <Loader2 className="size-5 animate-spin" /> : <ArrowUp className="size-5" />}
           </Button>

@@ -15,5 +15,11 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icono-512.png", sizes: "512x512", type: "image/png" },
       { src: "/icono-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
+    // Atajos: al dejar presionado el ícono de la app (Android) aparecen estos accesos directos
+    shortcuts: [
+      { name: "Registrar un gasto", short_name: "Gasto", url: "/agregar" },
+      { name: "Preguntarle a Tao", short_name: "Tao", url: "/asesor" },
+      { name: "Pagos próximos", short_name: "Pagos", url: "/pagos" },
+    ],
   };
 }

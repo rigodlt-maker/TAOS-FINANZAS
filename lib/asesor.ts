@@ -11,6 +11,7 @@ import { ganaRendimiento, interesDelDia, proyectar } from "./rendimientos";
 import { estadoTarjeta } from "./tarjetas";
 import { abiertos, pendiente } from "./envios";
 import type { Aportacion, Categoria, Cuenta, Meta, Movimiento, PagoProgramado, Prestamo, Transferencia } from "./tipos";
+import { conOpciones } from "./opciones";
 
 export type DatosAsesor = {
   hoy: string;
@@ -767,5 +768,10 @@ export function responderAsesor(pregunta: string, d: DatosAsesor): string {
   if (cuentas.length && /\b(gast\w*|compr\w*|cargos?)\b/.test(p)) return gastosConFiltro(p, d, filtro);
   if (cuentas.length) return deUnaCuenta(cuentas, d);
   if (categoria || comercio) return gastosConFiltro(p, d, filtro);
-  return `No estoy seguro de qué me preguntas, pero esto es lo más importante:\n\n${resumen(d)}\n\nTambién puedes preguntarme cosas como "¿cuánto gasté en comida este mes?" o "¿cuánto le debo a Nu?".`;
+  return conOpciones(`No estoy seguro de qué me preguntas, pero esto es lo más importante:\n\n${resumen(d)}\n\n¿Te refieres a alguna de estas?`, [
+    "¿Cuánto dinero tengo?",
+    "¿Qué tarjeta pago pronto?",
+    "¿En qué gasto más?",
+    "¿Cuánto debo en tarjetas?",
+  ]);
 }

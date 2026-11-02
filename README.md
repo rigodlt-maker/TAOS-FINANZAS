@@ -4,7 +4,7 @@ Tu dinero en orden: gastos en una línea, presupuesto por categoría, metas de a
 
 ## Instalar
 
-[![Instalar en Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frigodlt-maker%2Ftaos-finanzas&project-name=administrador-tao&repository-name=administrador-tao&env=CODIGO_COMPRA,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,ALLOWED_EMAIL,CRON_SECRET&envDescription=Tu%20c%C3%B3digo%20de%20compra%20de%20Hotmart%20%28HP...%29%2C%20datos%20de%20tu%20proyecto%20de%20Supabase%2C%20tu%20correo%20y%20un%20texto%20al%20azar%20para%20los%20avisos)
+[![Instalar en Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frigodlt-maker%2FTAOS-FINANZAS&project-name=administrador-tao&repository-name=administrador-tao&env=CODIGO_COMPRA,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,ALLOWED_EMAIL,CRON_SECRET&envDescription=Tu%20c%C3%B3digo%20de%20compra%20de%20Hotmart%20%28HP...%29%2C%20datos%20de%20tu%20proyecto%20de%20Supabase%2C%20tu%20correo%20y%20un%20texto%20al%20azar%20para%20los%20avisos)
 
 1. Toca el botón y entra con GitHub.
 2. Pega las variables (abajo) y toca **Deploy**.

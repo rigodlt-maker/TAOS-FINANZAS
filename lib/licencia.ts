@@ -1,7 +1,7 @@
 // Código de compra de TAOS: el código de tu compra en Hotmart (empieza con HP), en la variable CODIGO_COMPRA de Vercel.
 // Lo revisa el servidor de TAOS. Cada código instala cada app hasta 3 veces.
 // Si el servidor de TAOS no responde, la app sigue funcionando: una falla nuestra no debe dejarte sin tu app.
-export const LICENCIAS_URL = "https://taos-licencias.SUBDOMINIO.workers.dev";
+export const LICENCIAS_URL = "https://taos-licencias.rigo-dlt-1a7.workers.dev";
 export const APP_TAOS = "finanzas";
 
 export type Licencia = { ok: true } | { ok: false; problema: string };

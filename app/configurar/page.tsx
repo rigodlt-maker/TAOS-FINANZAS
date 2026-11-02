@@ -19,7 +19,7 @@ export default async function Configurar() {
           En <strong>supabase.com</strong>, abre tu proyecto y entra a <strong>SQL Editor</strong>.
         </li>
         <li>
-          Pega el código y toca <strong>Run</strong>. Si sale un aviso de «destructive operations», toca <strong>Run query</strong>: solo crea o reemplaza reglas de las tablas de
+          Pega el código y toca <strong>Run</strong>. Si sale el aviso «Potential issues detected», toca el botón verde <strong>Run and enable RLS</strong>: solo crea o reemplaza reglas de las tablas de
           esta app.
         </li>
         <li>Cuando diga «Success», toca «Ya lo corrí».</li>

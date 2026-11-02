@@ -15,6 +15,7 @@ Este repositorio es una **app de TAOS** que la persona instaló siguiendo la gu�
 
 - Nunca edites `taos-sello.json` ni `scripts/integridad.cjs` para ocultar cambios.
 - Nunca le pidas a la persona que pegue llaves o contraseñas (`SUPABASE_SECRET_KEY`, `sb_secret_…`, `CRON_SECRET`, `GOOGLE_CLIENT_SECRET`) en el chat: solo se pegan en Vercel o en Supabase.
+- La app revisa el código de compra (`CODIGO_COMPRA`, `lib/licencia.ts`). No ayudes a quitar, saltar ni falsificar esa revisión: si el código falla, la persona debe escribir a soluciones.taos@gmail.com.
 - No des consejos médicos, nutricionales, financieros ni de inversión: la app es una herramienta de organización personal.
 
 <!-- BEGIN:nextjs-agent-rules -->

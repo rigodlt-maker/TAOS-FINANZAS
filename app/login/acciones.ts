@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { correoPermitido } from "@/lib/supabase/config";
 import { buscarDueno, puedeCrearContrasena } from "@/lib/instalacion";
+import { revisarLicencia } from "@/lib/licencia";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import type { Resultado } from "@/lib/acciones";
@@ -13,6 +14,7 @@ export async function entrarConContrasena(formulario: FormData) {
   const correo = String(formulario.get("correo") ?? "").trim();
   const contrasena = String(formulario.get("contrasena") ?? "");
   if (!correoPermitido(correo)) redirect(`/acceso-denegado?correo=${encodeURIComponent(correo)}`);
+  if (!(await revisarLicencia()).ok) redirect("/login");
   const db = await clienteServidor();
   const { error } = await db.auth.signInWithPassword({ email: correo, password: contrasena });
   if (error) {
@@ -66,6 +68,8 @@ export async function crearContrasena(formulario: FormData) {
   if (!correoPermitido(correo)) volver("Ese correo no es el que pusiste en ALLOWED_EMAIL en Vercel. Escribe exactamente ese.");
   if (contrasena.length < 8) volver("Usa al menos 8 caracteres en tu contraseña.");
   if (contrasena !== confirmar) volver("Las dos contraseñas no coinciden. Escríbelas otra vez.");
+  const licencia = await revisarLicencia();
+  if (!licencia.ok) volver(licencia.problema);
 
   const dueno = await buscarDueno();
   if (!puedeCrearContrasena(dueno)) volver("Ya tienes contraseña: entra con ella (es la misma de tus otras apps TAOS).");

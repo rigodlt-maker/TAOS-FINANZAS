@@ -41,7 +41,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
               <li>
                 En <strong>vercel.com</strong> abre este proyecto › <strong>Settings</strong> › <strong>Environment Variables</strong>.
               </li>
-              <li>Corrige el dato (sin espacios al principio ni al final) y toca Save.</li>
+              <li>Agrega o corrige el dato (sin espacios al principio ni al final) y toca Save.</li>
               <li>
                 Ve a <strong>Deployments</strong>, toca los 3 puntitos del primero › <strong>Redeploy</strong>.
               </li>
@@ -58,7 +58,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
                 En <strong>supabase.com</strong> abre tu proyecto y, en el menú de la izquierda, entra a <strong>SQL Editor</strong>.
               </li>
               <li>
-                Pega el código y toca <strong>Run</strong>. Si sale un aviso de «destructive operations», toca <strong>Run this query</strong>: no borra nada tuyo.
+                Pega el código y toca <strong>Run</strong>. Si sale el aviso «Potential issues detected», toca el botón verde <strong>Run and enable RLS</strong>: no borra nada tuyo.
               </li>
               <li>Cuando diga «Success», regresa aquí y toca «Ya lo corrí».</li>
             </ol>

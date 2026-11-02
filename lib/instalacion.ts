@@ -1,5 +1,5 @@
 // Asistente de la primera vez, en la pantalla de entrada. Revisa en orden:
-//   1) que las variables de Vercel estén y tengan la forma correcta,
+//   1) que las variables de Vercel estén y tengan la forma correcta (incluido el código de compra),
 //   2) que ya se haya corrido el código SQL en Supabase,
 //   3) si el dueño todavía no tiene contraseña → la crea aquí mismo, SIN mandar correos.
 // Así nadie depende del correo de Supabase (que solo deja mandar 2 por hora) ni de configurar
@@ -7,6 +7,7 @@
 // la contraseña que se crea en la primera app sirve para las demás.
 import type { User } from "@supabase/supabase-js";
 import { clienteAdmin } from "./supabase/admin";
+import { revisarLicencia } from "./licencia";
 import { correosPermitidos, normalizarCorreo, SUPABASE_LLAVE_PUBLICA, SUPABASE_URL } from "./supabase/config";
 
 export type PasoEntrada =
@@ -63,6 +64,8 @@ export async function pasoDeEntrada(tablas: [string, string][]): Promise<PasoEnt
   if (!SUPABASE_URL || !SUPABASE_LLAVE_PUBLICA) return { paso: "entrar" }; // modo demostración
   const problemas = revisarVariables();
   if (problemas.length) return { paso: "variables", problemas };
+  const licencia = await revisarLicencia();
+  if (!licencia.ok) return { paso: "variables", problemas: [licencia.problema] };
   try {
     const admin = clienteAdmin();
     const resultados = await Promise.all(tablas.map(([tabla, columna]) => admin.from(tabla).select(columna).limit(1)));

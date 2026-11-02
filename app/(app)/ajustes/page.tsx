@@ -57,6 +57,11 @@ function CamposCuenta({ cuenta }: { cuenta?: Cuenta }) {
             Copia ambos días de tu último estado de cuenta. Te avisamos por correo 7 y 2 días antes de la fecha límite.
           </p>
         </div>
+        <Label className="sm:col-span-2">
+          Últimos 4 dígitos (opcional)
+          <Input name="terminacion" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" defaultValue={cuenta?.terminacion ?? ""} placeholder="1234" />
+          <span className="text-xs font-normal text-muted-foreground">Con ellos la app reconoce esta tarjeta cuando subes la foto de un ticket.</span>
+        </Label>
         <div className="grid grid-cols-3 gap-3 sm:col-span-2">
           <Label>
             Rendimiento anual %

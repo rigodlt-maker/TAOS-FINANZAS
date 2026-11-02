@@ -16,6 +16,7 @@ export type Cuenta = {
   fecha_corte_saldo?: string | null;
   // Solo ahorro/débito: rendimiento anual en % (diario, con interés compuesto)
   tasa_anual?: number | null;
+  terminacion?: string | null; // últimos 4 dígitos de la tarjeta: sirven para reconocerla en la foto de un ticket
   tope_tasa?: number | null; // la tasa aplica solo hasta este saldo (Cajita Turbo: 25,000)
   tasa_excedente?: number | null; // lo que pasa del tope gana esta tasa
   rendimiento_desde?: string | null; // último día en que ya se sumó el rendimiento

@@ -13,8 +13,8 @@ export function mismaClave(recibida: string | null, esperada: string): boolean {
 
 // Los crons de Vercel mandan "Authorization: Bearer <CRON_SECRET>"
 export function cronAutorizado(req: Request): boolean {
-  const secreto = process.env.CRON_SECRET;
-  return !!secreto && mismaClave(req.headers.get("authorization"), `Bearer ${secreto}`);
+  const secreto = process.env.CRON_SECRET?.trim();
+  return !!secreto && mismaClave(req.headers.get("authorization")?.trim() ?? null, `Bearer ${secreto}`);
 }
 
 // Los crons corren sin sesión: usan la llave secreta y los datos del dueño

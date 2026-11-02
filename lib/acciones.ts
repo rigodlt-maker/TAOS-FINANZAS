@@ -17,6 +17,7 @@ import { resumenPorCategoria } from "./presupuesto";
 import { detectarRecurrentes } from "./recurrentes";
 import { obtenerRepo } from "./sesion";
 import { clienteServidor } from "./supabase/servidor";
+import { cuentaDelTicket, leerTicket, type Ticket } from "./ticket";
 import type { Cuenta, Frecuencia, Movimiento, TipoCuenta } from "./tipos";
 
 export type Resultado = { ok: true; mensaje: string } | { ok: false; mensaje: string };
@@ -54,11 +55,16 @@ export async function guardarCuenta(f: FormData): Promise<Resultado> {
       tasa !== null || anterior?.tasa_anual
         ? { tasa_anual: tasa, tope_tasa: tasa ? numero(f, "tope_tasa") : null, tasa_excedente: tasa ? numero(f, "tasa_excedente") : null, rendimiento_desde: tasa ? hoyLocal() : null }
         : {};
-    if (id) await repo.editarCuenta(id, { ...datos, ...conRendimiento });
-    else await repo.crearCuenta({ ...datos, ...conRendimiento, es_ejemplo: false });
+    // Terminación de la tarjeta (solo si la escribiste o ya tenía una): para reconocerla en tickets
+    const digitos = texto(f, "terminacion").replace(/\D/g, "");
+    if (digitos && digitos.length !== 4) return { ok: false, mensaje: "Escribe exactamente los últimos 4 dígitos de la tarjeta." };
+    const conTerminacion = digitos || anterior?.terminacion ? { terminacion: digitos || null } : {};
+    if (id) await repo.editarCuenta(id, { ...datos, ...conRendimiento, ...conTerminacion });
+    else await repo.crearCuenta({ ...datos, ...conRendimiento, ...conTerminacion, es_ejemplo: false });
     refrescar();
     return { ok: true, mensaje: "Cuenta guardada." };
   } catch (e) {
+    if (/terminacion/.test(String(e))) return { ok: false, mensaje: 'Falta correr en Supabase el SQL de "terminación de tarjetas" (0008). (columna terminacion de accounts).' };
     if (/tasa_anual|tope_tasa|rendimiento_desde/.test(String(e))) return { ok: false, mensaje: 'Falta correr en Supabase el SQL de "rendimientos" (0005).' };
     return error(e);
   }
@@ -825,4 +831,18 @@ export async function borrarPrestamoAccion(id: string): Promise<Resultado> {
   } catch (e) {
     return error(e);
   }
+}
+
+// ---------- Foto del ticket ----------
+
+export type TicketPropuesto = Ticket & { account_id: string | null; category_id: string | null; tarjetaDesconocida: boolean };
+
+// El celular ya leyó el texto de la foto; aquí se propone el gasto (nada se guarda hasta que lo confirmes)
+export async function proponerTicket(textoTicket: string): Promise<TicketPropuesto> {
+  const repo = await obtenerRepo();
+  const [cuentas, categorias, reglas] = await Promise.all([repo.cuentas(), repo.categorias(), repo.reglas()]);
+  const t = leerTicket(textoTicket.slice(0, 20_000), hoyLocal());
+  const cuenta = cuentaDelTicket(t, cuentas);
+  const categoria = categorizarConReglas(`${t.comercio ?? ""} ${textoTicket.slice(0, 400)}`, reglas, categorias);
+  return { ...t, account_id: cuenta?.id ?? null, category_id: categoria?.category_id ?? null, tarjetaDesconocida: !!t.terminacion && !cuenta };
 }

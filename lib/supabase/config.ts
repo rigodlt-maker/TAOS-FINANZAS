@@ -8,7 +8,7 @@ function soloDominio(url: string): string {
 }
 
 export const SUPABASE_URL = soloDominio(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
-export const SUPABASE_LLAVE_PUBLICA = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+export const SUPABASE_LLAVE_PUBLICA = (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "").trim();
 
 // Sin Supabase configurado la app corre en modo demostración
 export function supabaseConfigurado(): boolean {

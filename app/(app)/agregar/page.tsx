@@ -2,6 +2,7 @@ import { Titulo } from "@/components/taos/encabezado";
 import Link from "next/link";
 import { CamposMovimiento } from "@/components/campos-movimiento";
 import { CapturaRapida } from "@/components/captura-rapida";
+import { FotoTicket } from "@/components/foto-ticket";
 import { BotonAccion, Desplegable, Formulario } from "@/components/formulario";
 import { ImportadorArchivo, ImportadorPdf } from "@/components/importador";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,16 @@ export default async function Agregar() {
           gasolina tdc", "cobré 9000 de la quincena".
         </CardDescription>
         <CapturaRapida />
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Foto del ticket</CardTitle>
+        </CardHeader>
+        <CardDescription className="mb-3">
+          Tómale foto al ticket y la app lee el total, la fecha, el comercio y con qué tarjeta pagaste (por sus últimos 4 dígitos). La foto se lee en tu celular y no se guarda.
+        </CardDescription>
+        <FotoTicket cuentas={cuentas} categorias={categorias} hoy={hoyLocal()} />
       </Card>
 
       <Desplegable titulo="Agregar un movimiento a mano">

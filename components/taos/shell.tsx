@@ -25,7 +25,7 @@ export function BarraInferior({ secciones }: { secciones: Seccion[] }) {
           const on = activa(actual, s);
           return (
             <li key={s.ruta}>
-              <Link href={s.ruta} aria-current={on ? "page" : undefined} className="block">
+              <Link href={s.ruta} aria-current={on ? "page" : undefined} className="block" data-recorrido={s.ruta}>
                 <ContenidoSeccion s={s} on={on} />
               </Link>
             </li>
@@ -80,6 +80,7 @@ export function BotonFlotante({
       <div className="mx-auto flex max-w-2xl justify-end px-4">
         <Link
           href={href}
+          data-recorrido="flotante"
           className="pointer-events-auto flex h-14 items-center gap-2 rounded-full bg-primary pr-6 pl-5 text-base font-semibold text-primary-foreground shadow-[0_8px_24px_rgba(212,175,55,0.35)] active:scale-95"
         >
           <Icono className="size-6" strokeWidth={2.4} />

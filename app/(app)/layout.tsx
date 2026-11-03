@@ -12,11 +12,12 @@ export const dynamic = "force-dynamic";
 
 // Recorrido de bienvenida (sale una sola vez)
 const RECORRIDO: Paso[] = [
-  { icono: "💸", titulo: "Bienvenido a Administrador Tao", texto: "Tu dinero en orden: cuentas, tarjetas, pagos y metas de ahorro en un solo lugar." },
-  { icono: "🎙️", titulo: "Registra en una línea", texto: "Toca Tao (arriba) y escribe o di con el micrófono: “350 súper con débito”. Tao lo registra y tú solo confirmas." },
-  { icono: "💳", titulo: "Cero intereses", texto: "En Pagos ves lo del corte de cada tarjeta: lo que tienes que pagar para no generar intereses, y cuándo." },
-  { icono: "🐜", titulo: "Presupuesto y gastos hormiga", texto: "Pon límite a tus categorías y descubre esos gastitos que se comen tu quincena." },
-  { icono: "🔔", titulo: "Activa los avisos", texto: "En Menú › Ajustes activa las notificaciones: te aviso 7 y 2 días antes de cada pago." },
+  { icono: "💸", titulo: "Bienvenido a Administrador Tao", texto: "Tu dinero en orden: cuentas, tarjetas, pagos y metas en un solo lugar. Te enseño lo básico en 1 minuto." },
+  { icono: "🎙️", titulo: "Registra en una línea", texto: "Toca Tao y escribe o di: “350 súper con débito”. Tao lo registra y tú solo confirmas.", donde: "tao" },
+  { icono: "➕", titulo: "Agregar a mano", texto: "Un gasto, un ingreso o la foto de tu ticket: todo empieza aquí.", donde: "flotante" },
+  { icono: "💳", titulo: "Cero intereses", texto: "Lo que debes pagar de cada tarjeta para no generar intereses, y cuándo.", donde: "/pagos" },
+  { icono: "🐜", titulo: "Presupuesto", texto: "Pon límite a tus categorías y descubre tus gastos hormiga.", donde: "/presupuesto" },
+  { icono: "🔔", titulo: "Todo lo demás", texto: "Préstamos, metas, avisos del banco y Ajustes. Activa las notificaciones y te aviso antes de cada pago.", donde: "/mas" },
 ];
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {

@@ -47,6 +47,7 @@ export function BotonTao({ titulo = "Pregúntale a Tao", children }: { titulo?: 
         type="button"
         onClick={() => setAbierto(true)}
         aria-haspopup="dialog"
+        data-recorrido="tao"
         className="flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(212,175,55,0.3)] active:scale-95"
       >
         <Sparkles className="size-5" />

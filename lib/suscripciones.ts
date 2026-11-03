@@ -1,9 +1,11 @@
 // Mis suscripciones: lo que te cobran cada mes o cada año (Netflix, Spotify, gimnasio, apps…), sacado de tus movimientos.
 // Regla: el mismo comercio cada ~mes (25–40 días) o cada ~año y todavía activo, con el mismo monto (±3%), o ±20% si es un servicio
-// conocido (Netflix, gimnasio…) o está en la categoría Suscripciones. No cuentan ahorro, transferencias ni servicios de la casa.
+// conocido (Netflix, gimnasio…) o está en la categoría Suscripciones. No cuentan ahorro, transferencias, servicios de la casa
+// ni compras a meses sin intereses (lib/msi.ts).
 // También cuenta un cargo reciente en la categoría "Suscripciones" aunque sea el primero.
 // Si la usas o no, lo marcas tú en la pantalla (la app no puede saberlo).
 import { normalizar, sumarDias } from "./formato";
+import { esMSI } from "./msi";
 import type { Categoria, Movimiento } from "./tipos";
 
 export type Suscripcion = {
@@ -72,6 +74,8 @@ export function detectarSuscripciones(movimientos: Movimiento[], categorias: Cat
     const ordenados = [...movs].sort((a, b) => a.fecha.localeCompare(b.fecha));
     const ultimo = ordenados.at(-1)!;
     if (NO_ES.test(clave)) continue;
+    // Una compra a meses sin intereses se repite cada mes, pero no es suscripción (tiene fin y no se cancela)
+    if (ordenados.some((m) => esMSI(`${m.comercio ?? ""} ${m.descripcion_original}`))) continue;
     const conocida = CONOCIDAS.test(clave) || (!!ultimo.category_id && esSuscripcion.has(ultimo.category_id));
     if (!conocida && ultimo.category_id && CATEGORIA_NO_ES.test(nombreCategoria.get(ultimo.category_id) ?? "")) continue;
     // Solo los cobros de monto parecido al último: las conocidas aceptan subidas de precio de hasta 20%;

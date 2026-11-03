@@ -28,6 +28,9 @@ test("detecta lo mensual y lo anual; no confunde compras frecuentes ni lo ya can
     mov("2026-09-08", "Telmex", 499, "serv"), mov("2026-10-08", "Telmex", 499, "serv"),
     mov("2026-09-07", "Home Depot", 1180, "casa"), mov("2026-10-07", "Home Depot", 1250, "casa"),
     mov("2026-09-15", "Ferretería La Esquina", 300), mov("2026-10-14", "Ferretería La Esquina", 340),
+    // compras a meses sin intereses: se repiten igual cada mes pero no son suscripciones
+    mov("2026-09-17", "Leansixsigma curso mens", 1358.34), mov("2026-10-17", "Leansixsigma curso mens", 1358.34),
+    mov("2026-09-17", "Boletos evento MENSUALIDAD 2 DE 6", 533.34), mov("2026-10-17", "Boletos evento MENSUALIDAD 3 DE 6", 533.34),
     // un comercio desconocido que cobra exactamente lo mismo cada mes sí cuenta
     mov("2026-09-18", "Club de Lectura MX", 150), mov("2026-10-18", "Club de Lectura MX", 150),
     // primer cargo de una app en la categoría Suscripciones

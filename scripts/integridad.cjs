@@ -1,7 +1,7 @@
 // Sello de la versión original de TAOS.
 // - `npm run sellar` (solo el autor): guarda en taos-sello.json la huella del código original.
 // - Al publicar (`npm run build`) se compara la huella actual con el sello. Si el código cambió,
-//   la app muestra un aviso de "versión modificada" (NEXT_PUBLIC_TAOS_MODIFICADA=1 en .env.production.local).
+//   la app lo dice en una línea discreta de Ajustes (NEXT_PUBLIC_TAOS_MODIFICADA=1 en .env.production.local), útil para soporte.
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -42,7 +42,7 @@ function revisar() {
   } catch {}
   const modificada = !sello || sello.huella !== huella();
   fs.writeFileSync(path.join(RAIZ, ".env.production.local"), `NEXT_PUBLIC_TAOS_MODIFICADA=${modificada ? 1 : 0}\n`);
-  console.log(modificada ? "⚠️  TAOS: el código no coincide con la versión original; la app mostrará el aviso de versión modificada." : "✓ TAOS: versión original.");
+  console.log(modificada ? "⚠️  TAOS: el código no coincide con la versión original; en Ajustes saldrá «Versión modificada»." : "✓ TAOS: versión original.");
   return modificada;
 }
 

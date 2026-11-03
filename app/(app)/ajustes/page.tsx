@@ -118,6 +118,12 @@ export default async function Ajustes() {
         <a href="/?recorrido=1" className="mt-3 flex min-h-11 items-center justify-center text-sm text-primary">
           Ver el tutorial otra vez
         </a>
+        {/* Lo calcula scripts/integridad.cjs al publicar: sirve para soporte (pide captura de esta línea) */}
+        {process.env.NEXT_PUBLIC_TAOS_MODIFICADA && (
+          <p className="mt-1 text-center text-xs text-muted-foreground">
+            {process.env.NEXT_PUBLIC_TAOS_MODIFICADA === "1" ? "Versión modificada · sin soporte de TAOS" : "Versión original de TAOS ✓"}
+          </p>
+        )}
       </Card>
 
       <Card>

@@ -1,7 +1,7 @@
 import { Titulo } from "@/components/taos/encabezado";
 import { BotonAccion } from "@/components/formulario";
 import { SelectorCategoria } from "@/components/revisar-fila";
-import { recategorizarPendientes } from "@/lib/acciones";
+import { confirmarCategoria, recategorizarPendientes } from "@/lib/acciones";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { dinero, fechaCorta } from "@/lib/formato";
 import { obtenerRepo } from "@/lib/sesion";
@@ -43,9 +43,18 @@ export default async function Revisar() {
                 {fechaCorta(m.fecha)} · {m.descripcion_original}
               </p>
             </div>
-            <p className="font-semibold whitespace-nowrap">{dinero(m.monto)}</p>
+            <p className={`font-semibold whitespace-nowrap ${m.tipo === "ingreso" ? "text-primary" : ""}`}>
+              {m.tipo === "ingreso" ? "+" : ""}
+              {dinero(m.monto)}
+            </p>
           </div>
-          <SelectorCategoria movimientoId={m.id} sugerida={m.category_id} categorias={categorias} />
+          {m.tipo === "ingreso" ? (
+            <BotonAccion accion={confirmarCategoria.bind(null, m.id)} variant="default" size="default">
+              ✓ Es un ingreso
+            </BotonAccion>
+          ) : (
+            <SelectorCategoria movimientoId={m.id} sugerida={m.category_id} categorias={categorias} />
+          )}
         </Card>
       ))}
     </div>

@@ -1,5 +1,6 @@
 import { ChevronRight, Inbox } from "lucide-react";
 import Link from "next/link";
+import { ADondeSeVa, TendenciaSaldo } from "@/components/a-donde-se-va";
 import { DineroLibre } from "@/components/dinero-libre";
 import { GastarHoy } from "@/components/gastar-hoy";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Progreso } from "@/components/ui/campos";
 import { diasEntre, dinero, dineroCorto, fechaCorta, hoyLocal, mesDe, nombreMes, rangoDelMes, sumarDias } from "@/lib/formato";
 import { cuantoPuedoGastarHoy } from "@/lib/gastar-hoy";
 import { detectarHormiga } from "@/lib/hormiga";
+import { gastoPorCategoria, resumenNaturaleza, tendenciaSaldo } from "@/lib/naturaleza";
 import { pagosDeTarjeta, pagosProximos } from "@/lib/pagos";
 import { porcentajeDelMes, resumenPorCategoria } from "@/lib/presupuesto";
 import { obtenerRepo } from "@/lib/sesion";
@@ -48,6 +50,9 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const finDeMes = rangoDelMes(mes).fin;
   const pagosDelMes = pagosProximos(pagos, hoy, diasEntre(hoy, finDeMes)).reduce((t, p) => t + (p.monto ?? 0), 0);
   const gastoHoy = cuantoPuedoGastarHoy({ hoy, movimientosDelMes: movimientos, presupuestoTotal, libre: cuentas.length ? resumen.libre : null, pagosPendientes: pagosDelMes });
+  const dona = gastoPorCategoria(movimientos, categorias);
+  const naturaleza = resumenNaturaleza(movimientos, categorias);
+  const tendencia = cuentas.length ? tendenciaSaldo(resumen.libre, ultimos30, hoy, 30) : [];
   const vigilar = resumenPorCategoria(mes, hoy, categorias, movimientos)
     .filter((r) => r.presupuesto > 0)
     .sort((a, b) => b.porcentajeGastado - a.porcentajeGastado)
@@ -97,6 +102,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
           </div>
         </div>
       </Card>
+
+      <ADondeSeVa dona={dona} naturaleza={naturaleza} periodo={`en ${nombreMes(mes)}`} />
 
       {hormiga.grupos.length > 0 && (
         <Card className="grid gap-3">
@@ -166,6 +173,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
           </ul>
         )}
       </Card>
+
+      <TendenciaSaldo puntos={tendencia} />
 
       <Card>
         <CardHeader>

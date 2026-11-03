@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { configuracionPendiente } from "@/lib/configuracion";
 import { ChatAsesor } from "@/components/chat-asesor";
 import { Navegacion } from "@/components/navegacion";
+import { OcultarMontos } from "@/components/ocultar-montos";
 import { Encabezado } from "@/components/taos/encabezado";
 import { Recorrido, type Paso } from "@/components/taos/recorrido";
 import { BotonTao } from "@/components/taos/tao";
@@ -16,6 +17,7 @@ const RECORRIDO: Paso[] = [
   { icono: "🎙️", titulo: "Registra en una línea", texto: "Toca Tao y escribe o di: “350 súper con débito”. Tao lo registra y tú solo confirmas.", donde: "tao" },
   { icono: "➕", titulo: "Agregar a mano", texto: "Un gasto, un ingreso o la foto de tu ticket: todo empieza aquí.", donde: "flotante" },
   { icono: "💳", titulo: "Cero intereses", texto: "Lo que debes pagar de cada tarjeta para no generar intereses, y cuándo.", donde: "/pagos" },
+  { icono: "👁️", titulo: "Ojito", texto: "¿Abres la app en público? Toca aquí y se ocultan todas las cantidades.", donde: "ojito" },
   { icono: "🐜", titulo: "Presupuesto", texto: "Pon límite a tus categorías y descubre tus gastos hormiga.", donde: "/presupuesto" },
   { icono: "🔔", titulo: "Todo lo demás", texto: "Préstamos, metas, avisos del banco y Ajustes. Activa las notificaciones y te aviso antes de cada pago.", donde: "/mas" },
 ];
@@ -30,9 +32,12 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       <Encabezado
         nombre="Administrador Tao"
         derecha={
-          <BotonTao>
-            <ChatAsesor enHoja />
-          </BotonTao>
+          <div className="flex items-center gap-2">
+            <OcultarMontos />
+            <BotonTao>
+              <ChatAsesor enHoja />
+            </BotonTao>
+          </div>
         }
       />
       {repo.modo === "demo" && !process.env.OCULTAR_AVISO_DEMO && (

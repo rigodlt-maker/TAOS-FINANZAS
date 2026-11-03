@@ -195,7 +195,8 @@ async function movimiento(repo: Repo, correo: CorreoBanco, cuentaId: string) {
       monto: correo.monto,
       tipo: ingreso ? "ingreso" : "gasto",
       category_id: null,
-      requiere_revision: !puntos,
+      // Lo que entra a tu cuenta es ingreso y ya: no necesita categoría de gasto
+      requiere_revision: !ingreso,
       es_recurrente: false,
       hash_unico: hash,
       import_id: null,

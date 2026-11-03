@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Input, Label, Select } from "./ui/campos";
 import type { Categoria, Cuenta, Movimiento } from "@/lib/tipos";
 
@@ -12,6 +15,8 @@ export function CamposMovimiento({
   movimiento?: Movimiento;
   hoy: string;
 }) {
+  // Un ingreso no lleva categoría de gasto
+  const [tipo, setTipo] = useState(movimiento?.tipo ?? "gasto");
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {movimiento && <input type="hidden" name="id" value={movimiento.id} />}
@@ -33,7 +38,7 @@ export function CamposMovimiento({
       </Label>
       <Label>
         Tipo
-        <Select name="tipo" defaultValue={movimiento?.tipo ?? "gasto"}>
+        <Select name="tipo" value={tipo} onChange={(e) => setTipo(e.target.value as "gasto" | "ingreso")}>
           <option value="gasto">Gasto</option>
           <option value="ingreso">Ingreso</option>
         </Select>
@@ -48,9 +53,10 @@ export function CamposMovimiento({
           ))}
         </Select>
       </Label>
-      <Label className="sm:col-span-2">
+      {tipo === "ingreso" && <input type="hidden" name="category_id" value="" />}
+      <Label className={`sm:col-span-2 ${tipo === "ingreso" ? "hidden" : ""}`}>
         Categoría
-        <Select name="category_id" defaultValue={movimiento?.category_id ?? ""}>
+        <Select name={tipo === "ingreso" ? undefined : "category_id"} defaultValue={movimiento?.category_id ?? ""}>
           <option value="">Sin categoría</option>
           {categorias.map((c) => (
             <option key={c.id} value={c.id}>

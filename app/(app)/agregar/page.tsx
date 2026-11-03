@@ -3,18 +3,26 @@ import Link from "next/link";
 import { CamposMovimiento } from "@/components/campos-movimiento";
 import { CapturaRapida } from "@/components/captura-rapida";
 import { FotoTicket } from "@/components/foto-ticket";
+import { GastosFrecuentes } from "@/components/gastos-frecuentes";
 import { BotonAccion, Desplegable, Formulario } from "@/components/formulario";
 import { ImportadorArchivo, ImportadorPdf } from "@/components/importador";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, Select } from "@/components/ui/campos";
 import { deshacerImportacion, guardarMovimiento, moverImportacion } from "@/lib/acciones";
-import { hoyLocal } from "@/lib/formato";
+import { hoyLocal, sumarDias } from "@/lib/formato";
+import { gastosFrecuentes } from "@/lib/frecuentes";
 import { iaDisponible } from "@/lib/ia";
 import { obtenerRepo } from "@/lib/sesion";
 
 export default async function Agregar() {
   const repo = await obtenerRepo();
-  const [cuentas, categorias, importaciones] = await Promise.all([repo.cuentas(), repo.categorias(), repo.importaciones()]);
+  const [cuentas, categorias, importaciones, recientes] = await Promise.all([
+    repo.cuentas(),
+    repo.categorias(),
+    repo.importaciones(),
+    repo.movimientos({ desde: sumarDias(hoyLocal(), -60) }),
+  ]);
+  const frecuentes = gastosFrecuentes(recientes, hoyLocal());
 
   if (!cuentas.length) {
     return (
@@ -34,6 +42,16 @@ export default async function Agregar() {
   return (
     <div className="grid gap-4">
       <Titulo>Agregar</Titulo>
+      {frecuentes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>En un toque</CardTitle>
+          </CardHeader>
+          <CardDescription className="mb-3">Tus gastos de siempre. Tócalo y queda registrado con la fecha de hoy.</CardDescription>
+          <GastosFrecuentes frecuentes={frecuentes} cuentas={Object.fromEntries(cuentas.map((c) => [c.id, c.nombre]))} />
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Captura rápida</CardTitle>
@@ -45,7 +63,7 @@ export default async function Agregar() {
         <CapturaRapida />
       </Card>
 
-      <Card>
+      <Card id="foto" className="scroll-mt-4">
         <CardHeader>
           <CardTitle>Foto del ticket</CardTitle>
         </CardHeader>

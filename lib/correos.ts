@@ -245,7 +245,11 @@ export function sugerencias(correo: CorreoBanco, pendientes: CorreoBanco[], cuen
 const cercaDeFecha = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) <= 2 * 86400_000;
 
 // ¿Ya lo registraste tú (en el chat, en Entre cuentas o como préstamo)?
-async function yaRegistrado(repo: Repo, correo: CorreoBanco, fecha: string): Promise<{ texto: string; transferencia_id?: string } | null> {
+// Movimientos que anotaste tú (no los que vienen de otro correo, de un estado de cuenta importado, rendimientos ni ejemplos)
+const anotadoPorTi = (m: { hash_unico: string; import_id: string | null; descripcion_original: string }) =>
+  m.import_id === null && !/^(correo:|ejemplo-)/.test(m.hash_unico) && !m.descripcion_original.startsWith("Rendimiento ");
+
+async function yaRegistrado(repo: Repo, correo: CorreoBanco, fecha: string): Promise<{ texto: string; transferencia_id?: string; movimiento_hash?: string } | null> {
   const mismo = (monto: number) => Math.abs(monto - correo.monto) < 0.01;
   if (correo.propio || correo.clase === "pago_tarjeta") {
     const t = (await repo.transferencias(100)).find((x) => mismo(x.monto) && cercaDeFecha(x.fecha, fecha) && (correo.clase !== "pago_tarjeta" || x.destino_id === correo.cuenta_id));
@@ -255,11 +259,15 @@ async function yaRegistrado(repo: Repo, correo: CorreoBanco, fecha: string): Pro
     const p = (await repo.prestamos().catch(() => [])).find((x) => mismo(x.monto) && cercaDeFecha(x.fecha, fecha));
     if (p) return { texto: `Ya lo tenías registrado como préstamo a ${p.persona}.` };
   }
+  // Lo que tú anotaste antes que llegara el correo (chat, captura rápida, foto del ticket o a mano), mismo monto ±2 días.
+  // Cada movimiento empata con un solo aviso (dos cafés iguales = dos avisos); primero en la misma cuenta del aviso.
   const tipo = correo.clase === "entrada" ? "ingreso" : "gasto";
-  const m = (await repo.movimientos({ desde: sumarDias(fecha, -2), hasta: sumarDias(fecha, 2) })).find(
-    (x) => x.tipo === tipo && mismo(x.monto) && x.hash_unico.startsWith("chat:"),
+  const usados = new Set((await repo.correos({ estado: "duplicado" }).catch(() => [])).map((c) => c.movimiento_hash).filter(Boolean));
+  const candidatos = (await repo.movimientos({ desde: sumarDias(fecha, -2), hasta: sumarDias(fecha, 2) })).filter(
+    (x) => x.tipo === tipo && mismo(x.monto) && anotadoPorTi(x) && !usados.has(x.hash_unico),
   );
-  return m ? { texto: `Ya lo tenías registrado: ${tipo} de ${dinero(correo.monto)} (${m.comercio ?? m.descripcion_original}).` } : null;
+  const m = candidatos.find((x) => x.account_id === correo.cuenta_id) ?? candidatos[0];
+  return m ? { texto: `Ya lo tenías registrado: ${tipo} de ${dinero(correo.monto)} (${m.comercio ?? m.descripcion_original}).`, movimiento_hash: m.hash_unico } : null;
 }
 
 // Solo se registra solo lo que es seguro: compras y bonificaciones de una tarjeta de crédito.
@@ -267,6 +275,12 @@ async function yaRegistrado(repo: Repo, correo: CorreoBanco, fecha: string): Pro
 async function resolver(repo: Repo, correo: CorreoBanco): Promise<"aplicado" | "pendiente" | "duplicado"> {
   const cuentas = await repo.cuentas();
   const fecha = fechaDe(correo.recibido);
+  // Primero: ¿ya lo anotaste tú? Así una compra que registraste con foto o a mano no se duplica al llegar el correo
+  const ya = await yaRegistrado(repo, correo, fecha);
+  if (ya) {
+    await repo.editarCorreo(correo.id, { estado: "duplicado", resultado: ya.texto, transferencia_id: ya.transferencia_id ?? null, movimiento_hash: ya.movimiento_hash ?? null });
+    return "duplicado";
+  }
   const tarjeta = cuentas.find((c) => c.id === correo.cuenta_id && c.tipo === "credito");
   if (tarjeta && (correo.clase === "compra" || (correo.clase === "entrada" && !correo.propio))) {
     const r = await movimiento(repo, correo, tarjeta.id);
@@ -274,11 +288,6 @@ async function resolver(repo: Repo, correo: CorreoBanco): Promise<"aplicado" | "
       await repo.editarCorreo(correo.id, { estado: "aplicado", resultado: r.texto, movimiento_hash: r.hash });
       return "aplicado";
     }
-  }
-  const ya = await yaRegistrado(repo, correo, fecha);
-  if (ya) {
-    await repo.editarCorreo(correo.id, { estado: "duplicado", resultado: ya.texto, transferencia_id: ya.transferencia_id ?? null });
-    return "duplicado";
   }
   await repo.editarCorreo(correo.id, { resultado: preguntaDe(correo, cuentas) });
   return "pendiente";

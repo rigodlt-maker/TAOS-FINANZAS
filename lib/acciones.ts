@@ -253,6 +253,35 @@ export async function guardarMovimiento(f: FormData): Promise<Resultado> {
   }
 }
 
+// Gasto frecuente en un toque (ver lib/frecuentes.ts). Devuelve la huella para poder deshacerlo.
+export async function registrarFrecuente(d: { comercio: string; monto: number; account_id: string; category_id: string | null }): Promise<Resultado & { hash?: string }> {
+  try {
+    const repo = await obtenerRepo();
+    const [cuentas, categorias] = await Promise.all([repo.cuentas(), repo.categorias()]);
+    const cuenta = cuentas.find((c) => c.id === d.account_id);
+    const monto = redondear(Math.abs(Number(d.monto) || 0));
+    if (!cuenta || !monto || !d.comercio?.trim()) return { ok: false, mensaje: "No pude registrar ese gasto." };
+    const category_id = categorias.some((c) => c.id === d.category_id) ? d.category_id : null;
+    const datos = { fecha: hoyLocal(), monto, descripcion_original: d.comercio.trim(), comercio: d.comercio.trim(), tipo: "gasto" as const, account_id: cuenta.id, category_id };
+    const hash = await hashUnico({ ...datos, descripcion_original: `${datos.comercio} ${Date.now()}` });
+    await repo.insertarMovimientos([{ ...datos, requiere_revision: !category_id, es_recurrente: false, import_id: null, hash_unico: hash }]);
+    refrescar();
+    return { ok: true, mensaje: `Guardado: ${dinero(monto)} en ${datos.comercio}, ${cuenta.nombre}.`, hash };
+  } catch (e) {
+    return error(e);
+  }
+}
+
+export async function deshacerFrecuente(hash: string): Promise<Resultado> {
+  try {
+    await (await obtenerRepo()).borrarMovimientoPorHash(hash);
+    refrescar();
+    return { ok: true, mensaje: "Listo, lo quité." };
+  } catch (e) {
+    return error(e);
+  }
+}
+
 export async function borrarMovimiento(id: string): Promise<Resultado> {
   try {
     await (await obtenerRepo()).borrarMovimiento(id);

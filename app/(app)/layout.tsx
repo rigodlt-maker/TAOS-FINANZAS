@@ -4,6 +4,7 @@ import { configuracionPendiente } from "@/lib/configuracion";
 import { ChatAsesor } from "@/components/chat-asesor";
 import { Navegacion } from "@/components/navegacion";
 import { OcultarMontos } from "@/components/ocultar-montos";
+import { SinInternet } from "@/components/sin-internet";
 import { Encabezado } from "@/components/taos/encabezado";
 import { Recorrido, type Paso } from "@/components/taos/recorrido";
 import { BotonTao } from "@/components/taos/tao";
@@ -45,6 +46,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
           <strong className="text-foreground">Modo demostración:</strong> estás viendo datos de ejemplo.
         </p>
       )}
+      <SinInternet />
       <main>{children}</main>
       <Suspense>
         <Recorrido pasos={RECORRIDO} />

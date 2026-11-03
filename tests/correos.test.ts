@@ -171,3 +171,19 @@ test("bonificación por puntos Membership Rewards: baja la deuda de la Amex (no 
   const [c] = await repo.correos();
   assert.match(c.resultado!, /No cuenta como pago de tu corte/);
 });
+
+test("compra que ya anotaste (foto, captura o a mano) no se duplica al llegar el correo; cada anotación empata con un solo aviso", async () => {
+  const { repo, cuenta } = await nuevoRepo();
+  const tarjeta = await cuenta("Nu crédito");
+  const base = { account_id: tarjeta.id, fecha: "2026-10-27", comercio: "Starbucks", monto: 85, tipo: "gasto" as const, category_id: null, requiere_revision: false, es_recurrente: false, import_id: null };
+  await repo.insertarMovimientos([{ ...base, descripcion_original: "85 café nu", hash_unico: "abc123" }]);
+  const compra = (id: string) => ({ id, de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Hola Juan Carlos. Compra aprobada con tu tarjeta de crédito Nu por $85.00 en STARBUCKS el 27 OCT 2026." });
+  const r1 = await procesarCorreos(repo, [compra("c1")]);
+  assert.equal(r1.duplicados, 1);
+  assert.equal((await repo.movimientos()).filter((m) => m.monto === 85).length, 1);
+  // Un segundo café igual (sin anotar) sí se registra
+  const r2 = await procesarCorreos(repo, [compra("c2")]);
+  assert.equal(r2.duplicados, 0);
+  assert.equal((await repo.movimientos()).filter((m) => m.monto === 85).length, 2);
+});
+

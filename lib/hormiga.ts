@@ -36,3 +36,30 @@ export function detectarHormiga(movimientos: Movimiento[], categorias: Categoria
   const total = lista.reduce((t, g) => t + g.total, 0);
   return { grupos: lista, total, alAnio: Math.round((total * 365) / 30) };
 }
+
+// Reto del mes "cero hormiga": tomando tus gastos hormiga de los 30 días antes de que empezara el mes,
+// cuánto ahorrarías si este mes no compras nada en esos lugares, cuánto llevas y cuántos días seguidos vas sin caer.
+export type RetoHormiga = { lugares: string[]; meta: number; llevas: number; veces: number; ahorrado: number; diasSin: number };
+
+export function retoHormiga(movimientos: Movimiento[], categorias: Categoria[], hoy: string): RetoHormiga | null {
+  const inicioMes = `${hoy.slice(0, 7)}-01`;
+  const base = detectarHormiga(movimientos, categorias, sumarDias(inicioMes, -1));
+  if (!base.grupos.length) return null;
+  const claves = new Set(base.grupos.map((g) => normalizar(g.nombre)));
+  const caidas = movimientos.filter(
+    (m) => m.tipo === "gasto" && m.fecha >= inicioMes && m.fecha <= hoy && m.monto <= TOPE_HORMIGA && claves.has(normalizar((m.comercio || m.descripcion_original.split(/\s+/).slice(0, 2).join(" ")).trim())),
+  );
+  const llevas = caidas.reduce((t, m) => t + m.monto, 0);
+  const ultima = caidas.map((m) => m.fecha).sort().at(-1);
+  // Días seguidos sin caer: desde la última compra hormiga (o desde que empezó el mes)
+  const desde = ultima ?? sumarDias(inicioMes, -1);
+  const diasSin = Math.max(0, Math.round((Date.parse(`${hoy}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000));
+  return {
+    lugares: base.grupos.map((g) => g.nombre),
+    meta: Math.round(base.total),
+    llevas: Math.round(llevas * 100) / 100,
+    veces: caidas.length,
+    ahorrado: Math.max(0, Math.round(base.total - llevas)),
+    diasSin,
+  };
+}

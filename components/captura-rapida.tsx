@@ -3,6 +3,7 @@
 import { Zap } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { capturaRapida, type Resultado } from "@/lib/acciones";
+import { agregarACola, sinInternet } from "@/lib/cola";
 import { Mensaje } from "./formulario";
 import { Button } from "./ui/button";
 import { Input } from "./ui/campos";
@@ -19,10 +20,22 @@ export function CapturaRapida() {
         e.preventDefault();
         const frase = ref.current?.value.trim();
         if (!frase) return;
+        // Sin internet: se guarda en el celular y se registra solo al volver la señal
+        const guardarSinInternet = () => {
+          agregarACola({ tipo: "frase", frase });
+          setResultado({ ok: true, mensaje: `Sin internet: guardé "${frase}". Se registra solo al volver la señal.` });
+          if (ref.current) ref.current.value = "";
+        };
+        if (sinInternet()) return guardarSinInternet();
         iniciar(async () => {
-          const r = await capturaRapida(frase);
-          setResultado(r);
-          if (r.ok && ref.current) ref.current.value = "";
+          try {
+            const r = await capturaRapida(frase);
+            setResultado(r);
+            if (r.ok && ref.current) ref.current.value = "";
+          } catch (e) {
+            if (sinInternet(e)) guardarSinInternet();
+            else setResultado({ ok: false, mensaje: "No se pudo guardar. Intenta otra vez." });
+          }
         });
       }}
     >

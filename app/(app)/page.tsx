@@ -3,11 +3,12 @@ import Link from "next/link";
 import { ADondeSeVa, TendenciaSaldo } from "@/components/a-donde-se-va";
 import { DineroLibre } from "@/components/dinero-libre";
 import { GastarHoy } from "@/components/gastar-hoy";
+import { RetoHormiga } from "@/components/reto-hormiga";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progreso } from "@/components/ui/campos";
 import { diasEntre, dinero, dineroCorto, fechaCorta, hoyLocal, mesDe, nombreMes, rangoDelMes, sumarDias } from "@/lib/formato";
 import { cuantoPuedoGastarHoy } from "@/lib/gastar-hoy";
-import { detectarHormiga } from "@/lib/hormiga";
+import { detectarHormiga, retoHormiga } from "@/lib/hormiga";
 import { gastoPorCategoria, resumenNaturaleza, tendenciaSaldo } from "@/lib/naturaleza";
 import { pagosDeTarjeta, pagosProximos } from "@/lib/pagos";
 import { porcentajeDelMes, resumenPorCategoria } from "@/lib/presupuesto";
@@ -23,15 +24,17 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const hoy = hoyLocal();
   const mes = mesDe(hoy);
   const repo = await obtenerRepo();
-  const [categorias, movimientos, pagos, cuentas, porRevisar, ultimos30] = await Promise.all([
+  const [categorias, movimientos, pagos, cuentas, porRevisar, recientes] = await Promise.all([
     repo.categorias(),
     repo.movimientos({ desde: rangoDelMes(mes).inicio }),
     repo.pagos(),
     repo.cuentas(),
     repo.contarPorRevisar(),
-    repo.movimientos({ desde: sumarDias(hoyLocal(), -30) }),
+    // Desde 30 días antes de que empezara el mes: alcanza para gastos hormiga, el reto del mes y la tendencia del saldo
+    repo.movimientos({ desde: sumarDias(rangoDelMes(mesDe(hoyLocal())).inicio, -30) }),
   ]);
-  const hormiga = detectarHormiga(ultimos30, categorias, hoy);
+  const hormiga = detectarHormiga(recientes, categorias, hoy);
+  const reto = retoHormiga(recientes, categorias, hoy);
   const avisosPendientes = await repo.correos({ estado: "pendiente" }).then((x) => x.length).catch(() => 0);
   const ctx = await contextoTarjetas(repo, hoy);
   const teDeben = await repo.prestamos().then((ps) => abiertos(ps).reduce((t, p) => t + pendiente(p), 0)).catch(() => 0);
@@ -52,7 +55,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const gastoHoy = cuantoPuedoGastarHoy({ hoy, movimientosDelMes: movimientos, presupuestoTotal, libre: cuentas.length ? resumen.libre : null, pagosPendientes: pagosDelMes });
   const dona = gastoPorCategoria(movimientos, categorias);
   const naturaleza = resumenNaturaleza(movimientos, categorias);
-  const tendencia = cuentas.length ? tendenciaSaldo(resumen.libre, ultimos30, hoy, 30) : [];
+  const tendencia = cuentas.length ? tendenciaSaldo(resumen.libre, recientes, hoy, 30) : [];
   const vigilar = resumenPorCategoria(mes, hoy, categorias, movimientos)
     .filter((r) => r.presupuesto > 0)
     .sort((a, b) => b.porcentajeGastado - a.porcentajeGastado)
@@ -133,6 +136,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
           <p className="text-xs text-muted-foreground">Compras de hasta $250 que se repiten 3 veces o más en el mismo lugar.</p>
         </Card>
       )}
+
+      {reto && <RetoHormiga r={reto} />}
 
       {porRevisar > 0 && (
         <Link href="/revisar" className="flex min-h-16 items-center gap-3 rounded-2xl border border-primary/50 bg-card px-4 active:bg-muted">

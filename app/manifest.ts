@@ -18,6 +18,7 @@ export default function manifest(): MetadataRoute.Manifest {
     // Atajos: al dejar presionado el ícono de la app (Android) aparecen estos accesos directos
     shortcuts: [
       { name: "Registrar un gasto", short_name: "Gasto", url: "/agregar" },
+      { name: "Foto del ticket", short_name: "Ticket", url: "/agregar#foto" },
       { name: "Preguntarle a Tao", short_name: "Tao", url: "/asesor" },
       { name: "Pagos próximos", short_name: "Pagos", url: "/pagos" },
     ],

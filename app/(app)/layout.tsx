@@ -7,6 +7,7 @@ import { OcultarMontos } from "@/components/ocultar-montos";
 import { SinInternet } from "@/components/sin-internet";
 import { Encabezado } from "@/components/taos/encabezado";
 import { Recorrido, type Paso } from "@/components/taos/recorrido";
+import { Campana } from "@/components/taos/campana";
 import { BotonTao } from "@/components/taos/tao";
 import { obtenerRepo } from "@/lib/sesion";
 
@@ -19,6 +20,7 @@ const RECORRIDO: Paso[] = [
   { icono: "➕", titulo: "Agregar a mano", texto: "Un gasto, un ingreso o la foto de tu ticket: todo empieza aquí.", donde: "flotante" },
   { icono: "💳", titulo: "Cero intereses", texto: "Lo que debes pagar de cada tarjeta para no generar intereses, y cuándo.", donde: "/pagos" },
   { icono: "👁️", titulo: "Ojito", texto: "¿Abres la app en público? Toca aquí y se ocultan todas las cantidades.", donde: "ojito" },
+  { icono: "🔔", titulo: "Tus avisos", texto: "Aquí quedan los avisos que te manda la app, por si se te pasó alguno. El numerito te dice cuántos no has visto.", donde: "campana" },
   { icono: "🐜", titulo: "Presupuesto", texto: "Pon límite a tus categorías y descubre tus gastos hormiga.", donde: "/presupuesto" },
   { icono: "🔔", titulo: "Todo lo demás", texto: "Préstamos, metas, avisos del banco y Ajustes. Activa las notificaciones y te aviso antes de cada pago.", donde: "/mas" },
 ];
@@ -31,10 +33,11 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   return (
     <div className="mx-auto max-w-2xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))]">
       <Encabezado
-        nombre="Administrador Tao"
+        nombre="Admin Tao"
         derecha={
           <div className="flex items-center gap-2">
             <OcultarMontos />
+            <Campana ajustes="/ajustes" />
             <BotonTao>
               <ChatAsesor enHoja />
             </BotonTao>

@@ -56,3 +56,7 @@ summary {
 main {
   min-width: 0;
 }
+
+/* Letra grande (Ajustes › Pantalla) */
+html[data-letra="grande"] { font-size: 112.5%; }
+html[data-letra="muy-grande"] { font-size: 125%; }

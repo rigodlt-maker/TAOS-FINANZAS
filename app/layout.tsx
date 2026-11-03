@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { RegistrarSW } from "@/components/registrar-sw";
 import "./globals.css";
+import { SCRIPT_LETRA } from "@/components/taos/tamano-letra";
 
 export const metadata: Metadata = {
   title: "Administrador Tao",
@@ -21,6 +22,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-MX">
+      <head>
+        {/* Tamaño de letra elegido en este celular, antes de pintar */}
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_LETRA }} />
+      </head>
       <body className="min-h-screen font-sans antialiased">
         {process.env.NEXT_PUBLIC_TAOS_MODIFICADA === "1" && (
           <div role="alert" style={{ background: "#2a2100", color: "#f0d27a", fontSize: 13, lineHeight: 1.4, padding: "8px 16px", textAlign: "center", borderBottom: "1px solid #d4af37" }}>

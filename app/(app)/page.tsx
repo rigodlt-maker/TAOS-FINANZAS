@@ -1,9 +1,11 @@
 import { ChevronRight, Inbox } from "lucide-react";
 import Link from "next/link";
 import { DineroLibre } from "@/components/dinero-libre";
+import { GastarHoy } from "@/components/gastar-hoy";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progreso } from "@/components/ui/campos";
-import { dinero, dineroCorto, fechaCorta, hoyLocal, mesDe, nombreMes, rangoDelMes, sumarDias } from "@/lib/formato";
+import { diasEntre, dinero, dineroCorto, fechaCorta, hoyLocal, mesDe, nombreMes, rangoDelMes, sumarDias } from "@/lib/formato";
+import { cuantoPuedoGastarHoy } from "@/lib/gastar-hoy";
 import { detectarHormiga } from "@/lib/hormiga";
 import { pagosDeTarjeta, pagosProximos } from "@/lib/pagos";
 import { porcentajeDelMes, resumenPorCategoria } from "@/lib/presupuesto";
@@ -42,6 +44,10 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const presupuestoTotal = categorias.reduce((t, c) => t + c.presupuesto_mensual, 0);
   const pctGastado = presupuestoTotal ? (gastado / presupuestoTotal) * 100 : 0;
   const pctMes = porcentajeDelMes(mes, hoy);
+  const resumen = resumenDinero(cuentas);
+  const finDeMes = rangoDelMes(mes).fin;
+  const pagosDelMes = pagosProximos(pagos, hoy, diasEntre(hoy, finDeMes)).reduce((t, p) => t + (p.monto ?? 0), 0);
+  const gastoHoy = cuantoPuedoGastarHoy({ hoy, movimientosDelMes: movimientos, presupuestoTotal, libre: cuentas.length ? resumen.libre : null, pagosPendientes: pagosDelMes });
   const vigilar = resumenPorCategoria(mes, hoy, categorias, movimientos)
     .filter((r) => r.presupuesto > 0)
     .sort((a, b) => b.porcentajeGastado - a.porcentajeGastado)
@@ -70,7 +76,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
           <ChevronRight className="size-5 text-muted-foreground" />
         </Link>
       )}
-      <DineroLibre r={resumenDinero(cuentas)} detalle={detalleTarjetas} teDeben={teDeben} />
+      <DineroLibre r={resumen} detalle={detalleTarjetas} teDeben={teDeben} />
+      {gastoHoy && <GastarHoy g={gastoHoy} />}
 
       <Card className="grid gap-3">
         <p className="text-sm text-muted-foreground first-letter:uppercase">Gastado en {nombreMes(mes)}</p>

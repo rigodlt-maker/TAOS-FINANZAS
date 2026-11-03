@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChartPie, FileUp, HandCoins, Inbox, Mail, Settings, Target } from "lucide-react";
+import { ArrowLeftRight, ChartPie, FileUp, HandCoins, Inbox, Mail, Repeat, Settings, Target } from "lucide-react";
 import { dinero } from "@/lib/formato";
 import { abiertos, pendiente } from "@/lib/envios";
 import Link from "next/link";
@@ -14,6 +14,7 @@ export default async function Mas() {
   const opciones = [
     { ruta: "/entre-cuentas", nombre: "Pagar tarjeta o mover dinero", detalle: "Entre tus propias cuentas", icono: ArrowLeftRight },
     { ruta: "/revisar", nombre: "Por revisar", detalle: porRevisar ? `${porRevisar} sin categoría` : "Todo al día", icono: Inbox, alerta: porRevisar > 0 },
+    { ruta: "/suscripciones", nombre: "Mis suscripciones", detalle: "Lo que pagas cada mes y no usas", icono: Repeat },
     { ruta: "/metas", nombre: "Metas de ahorro", detalle: "Cuánto llevas y cuánto falta", icono: Target },
     { ruta: "/prestamos", nombre: "Préstamos", detalle: teDeben ? `Te deben ${dinero(teDeben)}` : "Lo que prestaste", icono: HandCoins },
     { ruta: "/correos", nombre: "Avisos del banco", detalle: avisos ? `${avisos} por confirmar` : "Desde tu Gmail", icono: Mail, alerta: avisos > 0 },

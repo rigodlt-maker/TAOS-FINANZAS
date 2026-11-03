@@ -620,6 +620,23 @@ export async function guardarPago(f: FormData): Promise<Resultado> {
   }
 }
 
+// Mis suscripciones: "avísame antes del próximo cobro" = un pago programado con los avisos de siempre (7 y 2 días antes)
+export async function avisarSuscripcion(d: { nombre: string; monto: number; frecuencia: "mensual" | "anual"; proximo: string; account_id: string }): Promise<Resultado> {
+  try {
+    const repo = await obtenerRepo();
+    const nombre = `¿Cancelar ${d.nombre.trim().slice(0, 60)}?`;
+    if ((await repo.pagos()).some((p) => p.nombre === nombre)) return { ok: true, mensaje: "Ya te aviso antes de ese cobro." };
+    const cuenta = (await repo.cuentas()).find((c) => c.id === d.account_id);
+    const proximo = leerFecha(d.proximo);
+    if (!proximo || !(Number(d.monto) > 0)) return { ok: false, mensaje: "No pude programar el aviso." };
+    await repo.crearPago({ nombre, monto: redondear(Number(d.monto)), frecuencia: d.frecuencia, proximo_vencimiento: proximo, account_id: cuenta?.id ?? null, es_ejemplo: false });
+    refrescar();
+    return { ok: true, mensaje: "Listo: te aviso 7 y 2 días antes del cobro (lo ves en Pagos)." };
+  } catch (e) {
+    return error(e);
+  }
+}
+
 export async function borrarPago(id: string): Promise<Resultado> {
   try {
     await (await obtenerRepo()).borrarPago(id);

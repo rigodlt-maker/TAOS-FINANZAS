@@ -1,6 +1,6 @@
 import { categoriasConPresupuesto, generarEjemplo } from "../ejemplo";
 import { detectarRecurrentes } from "../recurrentes";
-import type { Aportacion, Categoria, CorreoBanco, Cuenta, Importacion, Meta, Movimiento, PagoProgramado, Prestamo, Regla, SuscripcionPush, Transferencia } from "../tipos";
+import type { Aportacion, Categoria, CorreoBanco, Credito, Cuenta, Importacion, Meta, Movimiento, PagoProgramado, Prestamo, Regla, SuscripcionPush, Transferencia } from "../tipos";
 import type { Repo } from "./repo";
 
 // Modo demostración: los datos viven en memoria del servidor y se reinician de vez en cuando.
@@ -18,10 +18,18 @@ type Almacen = {
   transferencias: Transferencia[];
   correos: CorreoBanco[];
   prestamos: Prestamo[];
+  creditos: Credito[];
   suscripcionesPush: SuscripcionPush[];
 };
 
 const id = () => crypto.randomUUID();
+
+// Próxima fecha con ese día del mes (para los ejemplos)
+function proximoDia(dia: number): string {
+  const hoy = new Date();
+  const f = new Date(hoy.getFullYear(), hoy.getMonth() + (hoy.getDate() >= dia ? 1 : 0), dia);
+  return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
+}
 
 function crearAlmacen(): Almacen {
   const ejemplo = generarEjemplo();
@@ -56,6 +64,22 @@ function crearAlmacen(): Almacen {
     transferencias: [],
     correos: [],
     prestamos: [],
+    // Ejemplo: un crédito de carro (datos inventados)
+    creditos: [
+      {
+        id: id(),
+        nombre: "Crédito del carro",
+        tipo: "auto",
+        saldo: 148_500,
+        pago: 5_890,
+        frecuencia: "mensual",
+        tasa_anual: 13.9,
+        proximo_pago: proximoDia(10),
+        cuenta_id: cuentas.find((c) => c.tipo === "debito")?.id ?? null,
+        nota: null,
+        liquidado_el: null,
+      },
+    ],
     suscripcionesPush: [],
   };
 }
@@ -127,6 +151,21 @@ export function repoMemoria(): Repo {
       const p = (a.prestamos ??= []).find((x) => x.id === i) ?? null;
       a.prestamos = a.prestamos.filter((x) => x.id !== i);
       return p;
+    },
+
+    async creditos() {
+      return [...(a.creditos ??= [])].sort((x, y) => x.proximo_pago.localeCompare(y.proximo_pago));
+    },
+    async crearCredito(c) {
+      const nuevo = id();
+      (a.creditos ??= []).push({ ...c, id: nuevo, created_at: new Date().toISOString() });
+      return nuevo;
+    },
+    async editarCredito(i, c) {
+      editar((a.creditos ??= []), [i], c);
+    },
+    async borrarCredito(i) {
+      a.creditos = (a.creditos ??= []).filter((x) => x.id !== i);
     },
 
     async transferencias(limite = 50) {

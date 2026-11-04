@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ADondeSeVa, TendenciaSaldo } from "@/components/a-donde-se-va";
 import { DineroLibre } from "@/components/dinero-libre";
 import { GastarHoy } from "@/components/gastar-hoy";
+import { PrimerosPasos } from "@/components/primeros-pasos";
+import { resumenCreditos } from "@/lib/creditos";
 import { RetoHormiga } from "@/components/reto-hormiga";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progreso } from "@/components/ui/campos";
@@ -38,6 +40,14 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const avisosPendientes = await repo.correos({ estado: "pendiente" }).then((x) => x.length).catch(() => 0);
   const ctx = await contextoTarjetas(repo, hoy);
   const teDeben = await repo.prestamos().then((ps) => abiertos(ps).reduce((t, p) => t + pendiente(p), 0)).catch(() => 0);
+  // Créditos (carro, personal…). null = todavía no se corre el SQL 0009 (la pantalla Mis créditos lo da)
+  const creditos = await repo.creditos().catch(() => null);
+  const debesCreditos = creditos ? resumenCreditos(creditos, hoy).total : 0;
+  const pasos = [
+    { hecho: cuentas.some((c) => c.tipo !== "credito"), titulo: "Agrega tu banco y su saldo", detalle: "Ajustes › Cuentas › tipo Débito, con lo que tienes hoy", href: "/ajustes#cuentas" },
+    { hecho: cuentas.some((c) => c.tipo === "credito"), titulo: "Agrega tus tarjetas de crédito", detalle: "Ajustes › Cuentas › tipo Crédito, con su corte y fecha de pago", href: "/ajustes#cuentas" },
+    { hecho: !!creditos?.length, titulo: "Agrega tus créditos", detalle: "Carro, personal, de nómina o casa: Menú › Mis créditos", href: "/creditos" },
+  ];
   const detalleTarjetas = Object.fromEntries([
     ...cuentas.filter((c) => c.tipo === "credito").map((c) => [c.id, lineaTarjeta(estadoTarjeta(c, ctx.movimientos, ctx.transferencias, hoy))]),
     // Cajitas: cuánto ganan al día
@@ -69,6 +79,10 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
       fecha: t.vence,
       monto: t.deuda > 0 ? t.deuda : null,
     })),
+    // Pagos de tus créditos (carro, personal…) en los próximos 14 días
+    ...(creditos ? resumenCreditos(creditos, hoy).lista : [])
+      .filter((c) => diasEntre(hoy, c.proximo_pago) <= 14)
+      .map((c) => ({ id: `credito-${c.id}`, href: "/creditos", nombre: c.nombre, fecha: c.proximo_pago, monto: c.pago as number | null })),
   ]
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
     .slice(0, 3);
@@ -84,7 +98,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
           <ChevronRight className="size-5 text-muted-foreground" />
         </Link>
       )}
-      <DineroLibre r={resumen} detalle={detalleTarjetas} teDeben={teDeben} />
+      <PrimerosPasos pasos={pasos} />
+      <DineroLibre r={resumen} detalle={detalleTarjetas} teDeben={teDeben} creditos={debesCreditos} />
       {gastoHoy && <GastarHoy g={gastoHoy} />}
 
       <Card className="grid gap-3">

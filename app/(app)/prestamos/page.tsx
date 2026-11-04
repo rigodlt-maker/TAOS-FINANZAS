@@ -11,7 +11,7 @@ import type { Prestamo } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
 
-// Dinero que prestaste: quién te debe, cuánto y cuándo te paga
+// Me deben (antes "Préstamos"): dinero que prestaste, quién te debe, cuánto y cuándo te paga
 export default async function Prestamos() {
   const repo = await obtenerRepo();
   const hoy = hoyLocal();
@@ -21,7 +21,7 @@ export default async function Prestamos() {
   } catch {
     return (
       <div className="grid gap-4">
-        <Titulo>Préstamos</Titulo>
+        <Titulo>Me deben</Titulo>
         <Card>
           <CardTitle>Falta un paso</CardTitle>
           <CardDescription className="mt-2">Corre en Supabase el SQL de “préstamos” (0006_prestamos.sql) y vuelve a abrir esta pantalla.</CardDescription>
@@ -36,7 +36,7 @@ export default async function Prestamos() {
 
   return (
     <div className="grid gap-4">
-      <Titulo detalle="Dile a Tao “Le presté 5 mil a Juan, me paga el 15 de noviembre” y aparece aquí. No cuenta como gasto: es dinero a tu favor.">Préstamos</Titulo>
+      <Titulo detalle="Dile a Tao “Le presté 5 mil a Juan, me paga el 15 de noviembre” y aparece aquí. No cuenta como gasto: es dinero a tu favor. (¿Lo que tú debes al banco? Eso va en Mis créditos.)">Me deben</Titulo>
       <Card>
         <p className="text-sm text-muted-foreground">Te deben</p>
         <p className="text-3xl font-semibold text-primary">{dinero(total)}</p>

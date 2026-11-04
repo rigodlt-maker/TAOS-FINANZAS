@@ -33,6 +33,7 @@ export async function POST(req: Request) {
     if (ajuste) return Response.json({ respuesta: textoAjuste(ajuste), ajuste });
     // "María me pagó": cobro de un préstamo (si todavía no se corre el SQL de préstamos, no hay préstamos)
     const prestamos = await repo.prestamos().catch(() => []);
+    const creditos = await repo.creditos().catch(() => []);
     const cobro = leerCobro(limpia, prestamos, cuentas);
     if (cobro)
       return Response.json({
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
     // "Pagué $30 de tamales con efectivo" / "me pagaron 5 mil": gasto o ingreso, también con confirmación
     const gasto = leerGastoDeChat(limpia, cuentas, categorias, await repo.reglas(), hoy);
     if (gasto) return Response.json({ respuesta: textoPropuestaGasto(gasto, hoy), gasto });
-    const respuesta = responderAsesor(limpia, { hoy, cuentas, categorias, movimientos, pagos, metas, aportaciones, transferencias, prestamos });
+    const respuesta = responderAsesor(limpia, { hoy, cuentas, categorias, movimientos, pagos, metas, aportaciones, transferencias, prestamos, creditos });
     return Response.json({ respuesta });
   } catch (e) {
     console.error("Asesor:", e);

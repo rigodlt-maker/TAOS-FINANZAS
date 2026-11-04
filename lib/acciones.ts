@@ -18,7 +18,8 @@ import { detectarRecurrentes } from "./recurrentes";
 import { obtenerRepo } from "./sesion";
 import { clienteServidor } from "./supabase/servidor";
 import { cuentaDelTicket, leerTicket, type Ticket } from "./ticket";
-import type { Cuenta, Frecuencia, Movimiento, TipoCuenta } from "./tipos";
+import { dividirPago, siguienteFecha } from "./creditos";
+import type { Cuenta, Frecuencia, FrecuenciaCredito, Movimiento, TipoCredito, TipoCuenta } from "./tipos";
 
 export type Resultado = { ok: true; mensaje: string } | { ok: false; mensaje: string };
 
@@ -876,6 +877,99 @@ export async function borrarPrestamoAccion(id: string): Promise<Resultado> {
     return { ok: true, mensaje };
   } catch (e) {
     return error(e);
+  }
+}
+
+// ---------- Mis créditos (lo que tú debes) ----------
+
+const faltaSqlCreditos = (e: unknown) =>
+  /debts/.test((e as Error)?.message ?? "") ? { ok: false as const, mensaje: "Falta correr en Supabase el SQL de “Mis créditos” (0009). Está en la pantalla Mis créditos." } : error(e);
+
+export async function guardarCredito(f: FormData): Promise<Resultado> {
+  try {
+    const repo = await obtenerRepo();
+    const nombre = texto(f, "nombre");
+    const saldo = numero(f, "saldo");
+    const pago = numero(f, "pago");
+    const tasa = numero(f, "tasa_anual") ?? 0;
+    const proximo = leerFecha(texto(f, "proximo_pago"));
+    if (!nombre) return { ok: false, mensaje: "Ponle un nombre, por ejemplo “Crédito del carro”." };
+    if (saldo === null || saldo < 0) return { ok: false, mensaje: "Escribe cuánto debes todavía (lo dice tu estado de cuenta o la app del banco)." };
+    if (!pago || pago <= 0) return { ok: false, mensaje: "Escribe cuánto pagas cada vez." };
+    if (tasa < 0 || tasa > 200) return { ok: false, mensaje: "La tasa de interés anual va de 0 a 200 %." };
+    if (!proximo) return { ok: false, mensaje: "Elige la fecha de tu próximo pago." };
+    const frecuencia = (["mensual", "quincenal", "semanal"].includes(texto(f, "frecuencia")) ? texto(f, "frecuencia") : "mensual") as FrecuenciaCredito;
+    const tipo = (["auto", "personal", "hipoteca", "nomina", "otro"].includes(texto(f, "tipo")) ? texto(f, "tipo") : "otro") as TipoCredito;
+    const datos = {
+      nombre,
+      tipo,
+      saldo: redondear(saldo),
+      pago: redondear(pago),
+      frecuencia,
+      tasa_anual: tasa,
+      proximo_pago: proximo,
+      cuenta_id: texto(f, "cuenta_id") || null,
+      nota: texto(f, "nota") || null,
+      liquidado_el: saldo <= 0.5 ? hoyLocal() : null,
+    };
+    const id = texto(f, "id");
+    if (id) await repo.editarCredito(id, datos);
+    else await repo.crearCredito(datos);
+    refrescar();
+    return { ok: true, mensaje: id ? "Crédito actualizado." : `Listo: agregué ${nombre}.` };
+  } catch (e) {
+    return faltaSqlCreditos(e);
+  }
+}
+
+// "Ya pagué": registra el gasto en tu cuenta, baja la deuda (solo la parte de capital) y pasa al siguiente pago
+export async function pagarCredito(id: string, f: FormData): Promise<Resultado> {
+  try {
+    const repo = await obtenerRepo();
+    const [creditos, cuentas, categorias] = await Promise.all([repo.creditos(), repo.cuentas(), repo.categorias()]);
+    const c = creditos.find((x) => x.id === id);
+    if (!c) return { ok: false, mensaje: "No encontré ese crédito." };
+    const monto = redondear(Math.abs(numero(f, "monto") ?? 0));
+    if (!monto) return { ok: false, mensaje: "Escribe cuánto pagaste." };
+    const cuenta = cuentas.find((x) => x.id === texto(f, "cuenta_id"));
+    const fecha = leerFecha(texto(f, "fecha")) ?? hoyLocal();
+    const { interes, capital } = dividirPago(c, monto);
+    if (cuenta) {
+      // Categoría de deudas si existe (Deudas, Créditos, Préstamos…)
+      const categoria = categorias.find((k) => /deuda|credito|prestamo|financ/.test(normalizar(k.nombre)));
+      const datos = { fecha, monto, descripcion_original: `Pago ${c.nombre}`, comercio: c.nombre, tipo: "gasto" as const, account_id: cuenta.id, category_id: categoria?.id ?? null };
+      await repo.insertarMovimientos([
+        { ...datos, requiere_revision: false, es_recurrente: true, import_id: null, hash_unico: await hashUnico({ ...datos, descripcion_original: `${datos.descripcion_original} ${Date.now()}` }) },
+      ]);
+      await repo.editarCuenta(cuenta.id, { saldo_actual: redondear(cuenta.saldo_actual - monto) });
+    }
+    const saldo = redondear(Math.max(0, c.saldo - capital));
+    const liquidado = saldo <= 0.5;
+    await repo.editarCredito(c.id, {
+      saldo,
+      proximo_pago: liquidado ? c.proximo_pago : siguienteFecha(c.proximo_pago, c.frecuencia),
+      liquidado_el: liquidado ? fecha : null,
+    });
+    refrescar();
+    const reparto = interes > 0 ? ` De tu pago, ${dinero(interes)} fueron intereses y ${dinero(capital)} bajaron tu deuda.` : "";
+    return {
+      ok: true,
+      mensaje: liquidado
+        ? `🎉 ¡Terminaste de pagar ${c.nombre}!${reparto}`
+        : `Listo: ahora debes ${dinero(saldo)}.${reparto}${cuenta ? ` ${cuenta.nombre} queda en ${dinero(cuenta.saldo_actual - monto)}.` : ""}`,
+    };
+  } catch (e) {
+    return faltaSqlCreditos(e);
+  }
+}
+
+export async function borrarCreditoAccion(id: string): Promise<Resultado> {
+  try {
+    await (await obtenerRepo()).borrarCredito(id);
+    refrescar();
+    return { ok: true, mensaje: "Crédito borrado (los pagos que ya registraste se quedan en Movimientos)." };
+  } catch (e) {
+    return faltaSqlCreditos(e);
   }
 }
 

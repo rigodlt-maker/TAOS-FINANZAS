@@ -1,4 +1,4 @@
-import type { Aportacion, Categoria, CorreoBanco, Cuenta, EstadoCorreo, Importacion, Meta, Movimiento, PagoProgramado, Prestamo, Regla, SuscripcionPush, Transferencia } from "../tipos";
+import type { Aportacion, Categoria, CorreoBanco, Credito, Cuenta, EstadoCorreo, Importacion, Meta, Movimiento, PagoProgramado, Prestamo, Regla, SuscripcionPush, Transferencia } from "../tipos";
 
 export type FiltroMovimientos = {
   desde?: string;
@@ -49,6 +49,12 @@ export interface Repo {
   crearPrestamo(p: Nuevo<Prestamo>): Promise<string>;
   editarPrestamo(id: string, p: Editable<Prestamo>): Promise<void>;
   borrarPrestamo(id: string): Promise<Prestamo | null>;
+
+  // Mis créditos (lo que tú debes). Si falta el SQL 0009, creditos() lanza error: la pantalla lo explica.
+  creditos(): Promise<Credito[]>;
+  crearCredito(c: Nuevo<Credito>): Promise<string>;
+  editarCredito(id: string, c: Editable<Credito>): Promise<void>;
+  borrarCredito(id: string): Promise<void>;
 
   transferencias(limite?: number): Promise<Transferencia[]>;
   crearTransferencia(t: Nuevo<Transferencia>): Promise<string>; // regresa el id

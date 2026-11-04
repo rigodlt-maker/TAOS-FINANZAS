@@ -5,7 +5,7 @@ import type { ResumenDinero } from "@/lib/transferencias";
 import { Card } from "./ui/card";
 
 // Lo que tienes, menos lo que debes en tarjetas = lo que te queda libre
-export function DineroLibre({ r, detalle = {}, teDeben = 0 }: { r: ResumenDinero; detalle?: Record<string, string>; teDeben?: number }) {
+export function DineroLibre({ r, detalle = {}, teDeben = 0, creditos = 0 }: { r: ResumenDinero; detalle?: Record<string, string>; teDeben?: number; creditos?: number }) {
   return (
     <Card className="grid gap-3">
       <p className="text-sm text-muted-foreground">{r.libre >= 0 ? "Dinero libre" : "Te falta para cubrir tus tarjetas"}</p>
@@ -43,11 +43,20 @@ export function DineroLibre({ r, detalle = {}, teDeben = 0 }: { r: ResumenDinero
               </Link>
             </li>
           ))}
+          {creditos > 0 && (
+            <li>
+              {/* Créditos (carro, personal…): se pagan poco a poco, no se restan del dinero libre */}
+              <Link href="/creditos" className="-mx-2 flex min-h-11 items-center justify-between gap-3 rounded-lg px-2 text-destructive active:bg-muted">
+                <span className="truncate">Debes en créditos</span>
+                <span className="whitespace-nowrap">−{dinero(creditos)}</span>
+              </Link>
+            </li>
+          )}
           {teDeben > 0 && (
             <li>
               {/* Préstamos: dinero a tu favor (no se suma al dinero libre hasta que te paguen) */}
               <Link href="/prestamos" className="-mx-2 flex min-h-11 items-center justify-between gap-3 rounded-lg px-2 text-primary active:bg-muted">
-                <span className="truncate">Te deben (préstamos)</span>
+                <span className="truncate">Te deben</span>
                 <span className="whitespace-nowrap">+{dinero(teDeben)}</span>
               </Link>
             </li>

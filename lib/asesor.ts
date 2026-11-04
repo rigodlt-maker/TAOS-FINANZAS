@@ -10,7 +10,8 @@ import { detectarRecurrentes } from "./recurrentes";
 import { ganaRendimiento, interesDelDia, proyectar } from "./rendimientos";
 import { estadoTarjeta } from "./tarjetas";
 import { abiertos, pendiente } from "./envios";
-import type { Aportacion, Categoria, Cuenta, Meta, Movimiento, PagoProgramado, Prestamo, Transferencia } from "./tipos";
+import { respuestaCreditos, resumenCreditos } from "./creditos";
+import type { Credito, Aportacion, Categoria, Cuenta, Meta, Movimiento, PagoProgramado, Prestamo, Transferencia } from "./tipos";
 import { conOpciones } from "./opciones";
 
 export type DatosAsesor = {
@@ -23,6 +24,7 @@ export type DatosAsesor = {
   aportaciones: Aportacion[];
   transferencias?: Transferencia[]; // pagos a tarjetas: para separar lo del corte de las compras nuevas
   prestamos?: Prestamo[]; // dinero que te deben
+  creditos?: Credito[]; // lo que tú debes (carro, personal…)
 };
 
 const ctx = (d: DatosAsesor) => ({ movimientos: d.movimientos, transferencias: d.transferencias ?? [] });
@@ -304,7 +306,9 @@ function resumen(d: DatosAsesor, saludo = ""): string {
   ];
   if (pago) lineas.push(`- **Próximo pago:** ${conLiga(pago.cuenta)} el ${fechaCorta(pago.vence)}${pago.deuda ? ` (${dinero(pago.deuda)})` : ""}.`);
   const teDeben = abiertos(d.prestamos ?? []).reduce((t, p) => t + pendiente(p), 0);
-  if (teDeben > 0) lineas.push(`- **Te deben:** ${dinero(teDeben)} en préstamos.`);
+  if (teDeben > 0) lineas.push(`- **Te deben:** ${dinero(teDeben)}.`);
+  const cr = resumenCreditos(d.creditos ?? [], d.hoy);
+  if (cr.total > 0) lineas.push(`- **Créditos:** debes ${dinero(cr.total)} y pagas unos ${dinero(cr.alMes)} al mes. [Ver](/creditos)`);
   if (pendientes) lineas.push(`- **Por revisar:** ${pendientes === 1 ? "1 movimiento" : `${pendientes} movimientos`}. [Revisarlos](/revisar)`);
   return lineas.join("\n");
 }
@@ -324,7 +328,15 @@ function saldos(d: DatosAsesor): string {
   return lineas.join("\n");
 }
 
+// "¿Cuánto debo?": tarjetas + créditos (carro, personal…)
 function deudas(d: DatosAsesor): string {
+  const cr = resumenCreditos(d.creditos ?? [], d.hoy);
+  if (!cr.lista.length) return deudasTarjetas(d);
+  const tarjetas = d.cuentas.some((c) => c.tipo === "credito" && c.saldo_actual < 0) ? deudasTarjetas(d) : "";
+  return [tarjetas, respuestaCreditos(d.creditos ?? [], d.hoy)].filter(Boolean).join("\n\n");
+}
+
+function deudasTarjetas(d: DatosAsesor): string {
   const tarjetas = d.cuentas.filter((c) => c.tipo === "credito");
   if (!tarjetas.length) return "No tienes tarjetas de crédito registradas. Agrégalas en **Más › Ajustes › Cuentas**.";
   const conDeuda = tarjetas.filter((c) => c.saldo_actual < 0).sort((a, b) => a.saldo_actual - b.saldo_actual);
@@ -580,7 +592,8 @@ export type Intencion =
   | "proyeccion"
   | "ahorrar"
   | "rendimientos"
-  | "prestamos";
+  | "prestamos"
+  | "creditos";
 
 // Cada regla suma puntos a una intención; gana la de más puntos (empate: la que va primero)
 const REGLAS: [Intencion, RegExp, number][] = [
@@ -610,6 +623,7 @@ const REGLAS: [Intencion, RegExp, number][] = [
   ["revisar", /\b(por revisar|pendientes|sin categoria|sin clasificar|revisar)\b/, 6],
   ["resumen", /\b(resumen|como (voy|estoy|ando|vamos|van mis finanzas)|situacion|panorama|estado (financiero|de mis finanzas)|mis finanzas|reporte|repaso|que tal voy)\b/, 5],
   ["proyeccion", /\b(a este ritmo|fin de mes|voy a gastar|proyeccion|terminare el mes|cerrare el mes|cuanto gastare)\b/, 7],
+  ["creditos", /\bmis creditos\b|(?<!tarjetas? de )\bcreditos?\b|\bhipoteca\b|\b(cuando|en cuanto tiempo) (termino|acabo|liquido) de pagar\b|\bmensualidad(es)? del (carro|auto|coche|credito)\b|\bprestamo personal\b|\bintereses (del|de mi) (credito|carro|prestamo)\b/, 9],
   ["prestamos", /\b(quien(es)? me debe\w*|me deben|cuanto me deben|prestamos?|preste|por cobrar|a quien le preste|me tienen que pagar)\b/, 9],
   ["rendimientos", /\b(rendimientos?|cuanto (me dan|me da|gano|genero|me pagan|me generan|me rinde|rinde|rinden)|cuanto (he )?ganado|intereses (que )?(gano|me dan|genero|ganados))\b/, 8],
   ["ahorrar", /\b(cuanto (puedo|podria) ahorrar|como (puedo )?ahorrar|consejos?|tips?|recortar|reducir|gastar menos|ahorrar mas)\b/, 7],
@@ -745,10 +759,12 @@ export function responderAsesor(pregunta: string, d: DatosAsesor): string {
   }
 
   // Preguntas de una cuenta en particular: "¿cuánto le debo a la HSBC?", "¿cuánto tengo en Nu?"
-  if (cuentas.length && (intencion === "saldos" || intencion === "deudas" || intencion === "pagos" || QUE_PALABRAS_SON_DE_CUENTA.test(p)) && intencion !== "gastoTotal")
+  if (cuentas.length && (intencion === "saldos" || intencion === "deudas" || intencion === "pagos" || intencion === "creditos" || QUE_PALABRAS_SON_DE_CUENTA.test(p)) && intencion !== "gastoTotal")
     return deUnaCuenta(cuentas, d);
 
   switch (intencion) {
+    case "creditos":
+      return respuestaCreditos(d.creditos ?? [], d.hoy, p);
     case "presupuesto":
       if (categoria) return cuantoGasteEn(normalizar(categoria.nombre), d) ?? presupuesto(d);
       return presupuesto(d);

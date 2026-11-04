@@ -64,6 +64,24 @@ export type Prestamo = {
   created_at?: string;
 };
 
+// Un crédito que TÚ pagas (carro, personal, hipoteca…): saldo que debes, pago fijo y tasa de interés
+export type TipoCredito = "auto" | "personal" | "hipoteca" | "nomina" | "otro";
+export type FrecuenciaCredito = "mensual" | "quincenal" | "semanal";
+export type Credito = {
+  id: string;
+  nombre: string;
+  tipo: TipoCredito;
+  saldo: number; // lo que todavía debes
+  pago: number; // lo que pagas cada vez
+  frecuencia: FrecuenciaCredito;
+  tasa_anual: number; // % anual (0 si no cobra interés)
+  proximo_pago: string;
+  cuenta_id: string | null; // de dónde sale el pago
+  nota: string | null;
+  liquidado_el: string | null;
+  created_at?: string;
+};
+
 // Un celular o navegador donde activaste las notificaciones push
 export type SuscripcionPush = {
   id: string;

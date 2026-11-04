@@ -1,6 +1,7 @@
 import { cronAutorizado, repoDelDueno } from "@/lib/cron";
 import { enviarCorreo, plantilla, urlDeLaApp } from "@/lib/correo";
 import { abiertos, pendiente } from "@/lib/envios";
+import { creditosPorAvisar } from "@/lib/creditos";
 import { diasEntre, dinero, fechaCorta, hoyLocal } from "@/lib/formato";
 import { aplicarRendimientos } from "@/lib/rendimientos";
 import { avisosDePago, enviarPush } from "@/lib/push";
@@ -26,13 +27,19 @@ export async function GET(req: Request) {
       bloques.push(
         `<strong>Cobrar a ${p.persona}</strong>: ${dinero(pendiente(p))}<br>${p.fecha_pago === hoy ? "Te paga hoy" : p.fecha_pago! < hoy ? `Se pasó del ${fechaCorta(p.fecha_pago!)}` : `Te paga el ${fechaCorta(p.fecha_pago!)}`}.${p.nota ? `<br>${p.nota}` : ""}`,
       );
-    const total = alertas.length + tarjetas.length + cobros.length;
+    // Pagos de tus créditos (carro, personal…): hoy, en 2 días o atrasados desde ayer. Si falta el SQL 0009, no pasa nada.
+    const creditos = creditosPorAvisar(await repo.creditos().catch(() => []), hoy);
+    for (const c of creditos)
+      bloques.push(`<strong>${c.nombre}</strong>: ${dinero(c.pago)}<br>${c.proximo_pago === hoy ? "Toca pagar hoy" : c.proximo_pago < hoy ? `Se pasó del ${fechaCorta(c.proximo_pago)}` : `Toca pagar el ${fechaCorta(c.proximo_pago)}`}.`);
+    const total = alertas.length + tarjetas.length + cobros.length + creditos.length;
     // Notificación en el celular además del correo
-    const push = await enviarPush(repo, avisosDePago(alertas, tarjetas, cobros, hoy));
+    const push = await enviarPush(repo, avisosDePago(alertas, tarjetas, cobros, hoy, creditos));
     if (total) {
       const asunto =
         cobros.length === total
           ? `💰 Cobrar a ${cobros[0].persona}${cobros.length > 1 ? ` y ${cobros.length - 1} más` : ""}`
+          : creditos.length === total && total === 1
+          ? `🏦 Pago de ${creditos[0].nombre}`
           : total > 1
           ? `⏰ ${total} pagos próximos`
           : alertas.length

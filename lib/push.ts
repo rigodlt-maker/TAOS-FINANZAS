@@ -4,7 +4,7 @@ import type { Repo } from "./datos/repo";
 import type { ResumenCorreos } from "./correos";
 import { abiertos, pendiente } from "./envios";
 import { diasEntre, dinero, fechaCorta } from "./formato";
-import type { Prestamo } from "./tipos";
+import type { Credito, Prestamo } from "./tipos";
 
 // Lo que aparece en la notificación del celular. "etiqueta" hace que un aviso nuevo reemplace al anterior del mismo tema.
 export type Aviso = { titulo: string; cuerpo: string; url?: string; etiqueta?: string };
@@ -80,8 +80,17 @@ type AlertaTarjeta = { cuenta: { id: string; nombre: string }; dias: number; ven
 
 const enDias = (dias: number) => (dias === 0 ? "hoy" : dias === 1 ? "mañana" : `en ${dias} días`);
 
-export function avisosDePago(alertas: AlertaPago[], tarjetas: AlertaTarjeta[], cobros: Prestamo[], hoy: string): Aviso[] {
+export function avisosDePago(alertas: AlertaPago[], tarjetas: AlertaTarjeta[], cobros: Prestamo[], hoy: string, creditos: Credito[] = []): Aviso[] {
   return [
+    ...creditos.map((c) => {
+      const dias = diasEntre(hoy, c.proximo_pago);
+      return {
+        titulo: `🏦 ${c.nombre}: ${dinero(c.pago)} ${dias < 0 ? "atrasado" : enDias(dias)}`,
+        cuerpo: dias < 0 ? `El pago era el ${fechaCorta(c.proximo_pago)}. Si ya pagaste, toca “Ya pagué”.` : `Pago de tu crédito. Cuando lo hagas, toca “Ya pagué”.`,
+        url: "/creditos",
+        etiqueta: `credito-${c.id}`,
+      };
+    }),
     ...tarjetas.map((t) => ({
       titulo: `💳 Pago de ${t.cuenta.nombre} ${enDias(t.dias)}`,
       cuerpo: `${t.deuda > 0 ? `${dinero(t.deuda)} para no generar intereses. ` : ""}Fecha límite: ${fechaCorta(t.vence)}.`,

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Aportacion, Categoria, CorreoBanco, Cuenta, Importacion, Meta, Movimiento, PagoProgramado, Prestamo, Regla, SuscripcionPush, Transferencia } from "../tipos";
+import type { Aportacion, Categoria, CorreoBanco, Credito, Cuenta, Importacion, Meta, Movimiento, PagoProgramado, Prestamo, Regla, SuscripcionPush, Transferencia } from "../tipos";
 import type { FiltroMovimientos, Repo } from "./repo";
 
 // Postgres devuelve los montos "numeric" como número o texto según el caso: siempre los convertimos
@@ -32,6 +32,7 @@ export function repoSupabase(db: SupabaseClient, uid: string): Repo {
     presupuesto_mensual: num(r.presupuesto_mensual),
   });
   const prestamo = (r: Record<string, unknown>): Prestamo => ({ ...(r as unknown as Prestamo), monto: num(r.monto), abonado: num(r.abonado) });
+  const credito = (r: Record<string, unknown>): Credito => ({ ...(r as unknown as Credito), saldo: num(r.saldo), pago: num(r.pago), tasa_anual: num(r.tasa_anual) });
   const correoBanco = (r: Record<string, unknown>): CorreoBanco => ({ ...(r as unknown as CorreoBanco), monto: num(r.monto) });
   const movimiento = (r: Record<string, unknown>): Movimiento => ({ ...(r as unknown as Movimiento), monto: num(r.monto) });
   const meta = (r: Record<string, unknown>): Meta => ({
@@ -91,6 +92,20 @@ export function repoSupabase(db: SupabaseClient, uid: string): Repo {
     async borrarPrestamo(id) {
       const fila = revisar(await tabla("loans").delete().eq("id", id).eq("user_id", uid).select().maybeSingle()) as Record<string, unknown> | null;
       return fila ? prestamo(fila) : null;
+    },
+
+    async creditos() {
+      return revisar(await deUsuario("debts").order("proximo_pago", { ascending: true })).map((r: Record<string, unknown>) => credito(r));
+    },
+    async crearCredito(c) {
+      const fila = revisar(await tabla("debts").insert(conUsuario(c)).select("id").single()) as { id: string };
+      return fila.id;
+    },
+    async editarCredito(id, c) {
+      revisar(await tabla("debts").update(c).eq("id", id).eq("user_id", uid));
+    },
+    async borrarCredito(id) {
+      revisar(await tabla("debts").delete().eq("id", id).eq("user_id", uid));
     },
 
     async transferencias(limite = 50) {

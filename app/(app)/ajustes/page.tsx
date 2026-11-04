@@ -126,7 +126,7 @@ export default async function Ajustes() {
         )}
       </Card>
 
-      <Card>
+      <Card id="cuentas" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>Cuentas</CardTitle>
         </CardHeader>

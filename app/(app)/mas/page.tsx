@@ -1,5 +1,6 @@
-import { ArrowLeftRight, ChartPie, FileUp, HandCoins, Inbox, Mail, Repeat, Settings, Target } from "lucide-react";
-import { dinero } from "@/lib/formato";
+import { ArrowLeftRight, ChartPie, FileUp, HandCoins, Inbox, Landmark, Mail, Repeat, Settings, Target } from "lucide-react";
+import { resumenCreditos } from "@/lib/creditos";
+import { dinero, hoyLocal } from "@/lib/formato";
 import { abiertos, pendiente } from "@/lib/envios";
 import Link from "next/link";
 import { Titulo } from "@/components/taos/encabezado";
@@ -11,12 +12,14 @@ export default async function Mas() {
   // Si todavía no se corre el SQL de avisos, la lista no truena
   const avisos = await repo.correos({ estado: "pendiente" }).then((x) => x.length).catch(() => 0);
   const teDeben = await repo.prestamos().then((ps) => abiertos(ps).reduce((t, p) => t + pendiente(p), 0)).catch(() => 0);
+  const debo = await repo.creditos().then((cs) => resumenCreditos(cs, hoyLocal()).total).catch(() => 0);
   const opciones = [
     { ruta: "/entre-cuentas", nombre: "Pagar tarjeta o mover dinero", detalle: "Entre tus propias cuentas", icono: ArrowLeftRight },
     { ruta: "/revisar", nombre: "Por revisar", detalle: porRevisar ? `${porRevisar} sin categoría` : "Todo al día", icono: Inbox, alerta: porRevisar > 0 },
     { ruta: "/suscripciones", nombre: "Mis suscripciones", detalle: "Lo que pagas cada mes y no usas", icono: Repeat },
     { ruta: "/metas", nombre: "Metas de ahorro", detalle: "Cuánto llevas y cuánto falta", icono: Target },
-    { ruta: "/prestamos", nombre: "Préstamos", detalle: teDeben ? `Te deben ${dinero(teDeben)}` : "Lo que prestaste", icono: HandCoins },
+    { ruta: "/creditos", nombre: "Mis créditos", detalle: debo ? `Debes ${dinero(debo)}` : "Carro, personal, casa…", icono: Landmark },
+    { ruta: "/prestamos", nombre: "Me deben", detalle: teDeben ? `Te deben ${dinero(teDeben)}` : "Lo que prestaste a otros", icono: HandCoins },
     { ruta: "/correos", nombre: "Avisos del banco", detalle: avisos ? `${avisos} por confirmar` : "Desde tu Gmail", icono: Mail, alerta: avisos > 0 },
     { ruta: "/agregar", nombre: "Agregar o importar", detalle: "A mano o estado de cuenta", icono: FileUp },
     { ruta: "/presupuesto", nombre: "Presupuesto", detalle: "Categorías y gráficas", icono: ChartPie },

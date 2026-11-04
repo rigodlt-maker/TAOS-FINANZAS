@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { configuracionPendiente } from "@/lib/configuracion";
+import { estadoBD } from "@/lib/configuracion";
+import { Actualizacion } from "@/components/taos/actualizacion";
+import Link from "next/link";
 import { ChatAsesor } from "@/components/chat-asesor";
 import { Navegacion } from "@/components/navegacion";
 import { OcultarMontos } from "@/components/ocultar-montos";
@@ -27,7 +29,8 @@ const RECORRIDO: Paso[] = [
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   // Primera vez (o tras una actualización): primero se crean las tablas en Supabase
-  if (await configuracionPendiente()) redirect("/configurar");
+  const bd = await estadoBD();
+  if (bd.primeraVez) redirect("/configurar");
   const repo = await obtenerRepo();
   const porRevisar = await repo.contarPorRevisar();
   return (
@@ -50,6 +53,13 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         </p>
       )}
       <SinInternet />
+      {bd.pendientes.length > 0 && (
+        <Link href="/configurar" className="mb-4 flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-primary/60 bg-card px-4 py-3 text-sm active:bg-muted">
+          <span>🛠️ Tu app se actualizó: falta 1 minuto en tu base de datos. Toca aquí.</span>
+          <span className="text-primary">›</span>
+        </Link>
+      )}
+      <Actualizacion repo="taos-finanzas" />
       <main>{children}</main>
       <Suspense>
         <Recorrido pasos={RECORRIDO} />

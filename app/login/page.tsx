@@ -12,8 +12,9 @@ import { crearContrasena, entrarConContrasena, enviarEnlace } from "./acciones";
 export const dynamic = "force-dynamic";
 
 const NOMBRE = "Administrador Tao";
-// Tablas y columnas más nuevas de esta app: si alguna falta, hay que correr el código SQL
-const TABLAS: [string, string][] = [["accounts", "saldo_al_corte"], ["accounts", "tasa_anual"], ["transfers", "id"], ["bank_emails", "id"], ["loans", "id"], ["push_subscriptions", "id"]];
+// Si falta la tabla principal, es la primera vez: hay que correr el código SQL completo.
+// (Lo que agregan las actualizaciones se pide adentro de la app, solo lo nuevo: lib/configuracion.ts)
+const TABLAS: [string, string][] = [["accounts", "id"]];
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ enviado?: string; error?: string }> }) {
   const { enviado, error } = await searchParams;

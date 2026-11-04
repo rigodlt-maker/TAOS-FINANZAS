@@ -1,0 +1,31 @@
+# Actualizar TAOS: trae la versión nueva de TAOS a tu copia, sin tocar tus datos (viven en tu Supabase).
+# Corre sola cada noche y también con el botón «Run workflow» (pestaña Actions › Actualizar TAOS).
+# No lo cambies: si lo editas, tu app puede dejar de actualizarse.
+name: Actualizar TAOS
+
+on:
+  schedule:
+    - cron: "23 9 * * *" # 3:23 a. m. hora del centro de México
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  actualizar:
+    # En el repositorio original de TAOS no hace nada (solo en las copias de los compradores)
+    if: github.repository_owner != 'rigodlt-maker'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Traer la versión nueva de TAOS
+        run: |
+          git clone --depth 1 https://github.com/rigodlt-maker/taos-finanzas.git /tmp/taos
+          rsync -a --delete --exclude .git --exclude .github/workflows /tmp/taos/ ./
+          # A nombre del dueño del repositorio: así Vercel acepta publicar el cambio
+          git config user.name "${{ github.repository_owner }}"
+          git config user.email "${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "Tu app ya está al día ✓"; exit 0; fi
+          git commit -m "Actualización de TAOS a la versión $(node -p "require('./taos-version.json').version" 2>/dev/null || echo nueva)"
+          git push

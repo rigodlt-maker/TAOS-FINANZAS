@@ -1,18 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Copiar } from "@/components/copiar";
-import { configuracionPendiente } from "@/lib/configuracion";
-import { SQL_INSTALAR } from "@/lib/sql";
+import { estadoBD, sqlPendiente } from "@/lib/configuracion";
 
 export const dynamic = "force-dynamic";
 
 // Primera vez (o tras una actualización): crea las tablas de la app en tu Supabase con un solo pegado
 export default async function Configurar() {
-  if (!(await configuracionPendiente())) redirect("/");
+  const bd = await estadoBD();
+  if (!bd.pendientes.length) redirect("/");
   return (
     <main className="mx-auto grid max-w-2xl gap-4 px-4 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Un último paso: tu base de datos</h1>
-      <p className="text-sm text-muted-foreground">Copia este código y pégalo una vez en Supabase. Crea las tablas de la app, protegidas para que solo tú veas tus datos.</p>
+      <h1 className="text-2xl font-semibold tracking-tight">{bd.primeraVez ? "Un último paso: tu base de datos" : "Tu app se actualizó: falta 1 minuto"}</h1>
+      <p className="text-sm text-muted-foreground">
+        {bd.primeraVez
+          ? "Copia este código y pégalo una vez en Supabase. Crea las tablas de la app, protegidas para que solo tú veas tus datos."
+          : "La versión nueva trae funciones que necesitan un lugar en tu base de datos. Este código solo agrega lo nuevo: no borra ni cambia nada de lo que ya tienes."}
+      </p>
       <ol className="grid list-decimal gap-2 rounded-2xl border bg-card p-4 pl-8 text-sm">
         <li>Toca «Copiar código».</li>
         <li>
@@ -24,7 +28,7 @@ export default async function Configurar() {
         </li>
         <li>Cuando diga «Success», toca «Ya lo corrí».</li>
       </ol>
-      <Copiar texto={SQL_INSTALAR} />
+      <Copiar texto={sqlPendiente(bd)} />
       <Link href="/" className="flex min-h-12 items-center justify-center rounded-xl border font-semibold">
         Ya lo corrí
       </Link>

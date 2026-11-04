@@ -1,9 +1,13 @@
 import type { MetadataRoute } from "next";
+import { supabaseConfigurado } from "@/lib/supabase/config";
 
 export default function manifest(): MetadataRoute.Manifest {
+  // Apps de demostración (sin base de datos): ícono a lápiz y "Demo" en el nombre, para no confundirlas con la app real
+  const demo = !supabaseConfigurado();
+  const ico = demo ? "/demo/icono" : "/icono";
   return {
-    name: "Administrador Tao",
-    short_name: "Admin Tao",
+    name: demo ? "Administrador Tao (demo)" : "Administrador Tao",
+    short_name: demo ? "Admin Tao demo" : "Admin Tao",
     description: "Mis gastos, presupuesto, metas de ahorro y pagos",
     start_url: "/",
     display: "standalone",
@@ -11,9 +15,9 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#060606",
     lang: "es-MX",
     icons: [
-      { src: "/icono-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icono-512.png", sizes: "512x512", type: "image/png" },
-      { src: "/icono-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: `${ico}-192.png`, sizes: "192x192", type: "image/png" },
+      { src: `${ico}-512.png`, sizes: "512x512", type: "image/png" },
+      { src: `${ico}-maskable-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     // Atajos: al dejar presionado el ícono de la app (Android) aparecen estos accesos directos
     shortcuts: [

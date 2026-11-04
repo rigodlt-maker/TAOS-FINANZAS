@@ -14,7 +14,7 @@ export function Navegacion({ porRevisar }: { porRevisar: number }) {
           { ruta: "/movimientos", nombre: "Movimientos", icono: List, tambien: ["/revisar"] },
           { ruta: "/pagos", nombre: "Pagos", icono: CalendarClock, tambien: ["/pagar"] },
           { ruta: "/presupuesto", nombre: "Presupuesto", icono: ChartPie, tambien: ["/metas"] },
-          { ruta: "/mas", nombre: "Menú", icono: LayoutGrid, insignia: porRevisar, tambien: ["/ajustes", "/agregar", "/entre-cuentas", "/correos", "/prestamos", "/creditos", "/asesor"] },
+          { ruta: "/mas", nombre: "Menú", icono: LayoutGrid, insignia: porRevisar, tambien: ["/ajustes", "/agregar", "/entre-cuentas", "/correos", "/prestamos", "/creditos", "/sugerencias", "/asesor"] },
         ]}
       />
     </>

@@ -1,10 +1,10 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "fecha": "2026-11-04",
   "novedades": [
+    "Sugerencias: cuéntanos tus ideas o si algo falla, directo desde la app (Menú/Ajustes › Enviar una sugerencia).",
     "Mis créditos: tu crédito del carro, personal, de nómina o de casa. Te dice cuándo terminas, cuánto pagas de intereses y te avisa antes de cada pago.",
     "“Préstamos” ahora se llama “Me deben” (lo que tú prestaste).",
-    "Primeros pasos en Inicio: banco, tarjetas y créditos, en ese orden.",
-    "Actualizaciones automáticas: tu app se pone al día sola cada noche, sin tocar tus datos."
+    "Primeros pasos en Inicio: banco, tarjetas y créditos, en ese orden."
   ]
 }

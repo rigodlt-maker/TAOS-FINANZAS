@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChartPie, FileUp, HandCoins, Inbox, Landmark, Mail, Repeat, Settings, Target } from "lucide-react";
+import { ArrowLeftRight, ChartPie, FileUp, HandCoins, Inbox, Landmark, Mail, MessageSquareHeart, Repeat, Settings, Target } from "lucide-react";
 import { resumenCreditos } from "@/lib/creditos";
 import { dinero, hoyLocal } from "@/lib/formato";
 import { abiertos, pendiente } from "@/lib/envios";
@@ -23,6 +23,7 @@ export default async function Mas() {
     { ruta: "/correos", nombre: "Avisos del banco", detalle: avisos ? `${avisos} por confirmar` : "Desde tu Gmail", icono: Mail, alerta: avisos > 0 },
     { ruta: "/agregar", nombre: "Agregar o importar", detalle: "A mano o estado de cuenta", icono: FileUp },
     { ruta: "/presupuesto", nombre: "Presupuesto", detalle: "Categorías y gráficas", icono: ChartPie },
+    { ruta: "/sugerencias", nombre: "Sugerencias", detalle: "Ideas, fallas o mejoras", icono: MessageSquareHeart },
     { ruta: "/ajustes", nombre: "Ajustes", detalle: "Cuentas, categorías, avisos y contraseña", icono: Settings },
   ];
   return (

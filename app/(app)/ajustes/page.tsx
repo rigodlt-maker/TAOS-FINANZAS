@@ -111,6 +111,13 @@ export default async function Ajustes() {
         </CardDescription>
         <AvisosPush />
       </Card>
+      <a href="/sugerencias" className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-primary/60 bg-card px-4 py-3 active:bg-muted">
+        <span>
+          <span className="block font-semibold">💬 Enviar una sugerencia</span>
+          <span className="block text-xs text-muted-foreground">Ideas, fallas o mejoras: llegan directo al equipo de TAOS</span>
+        </span>
+        <span className="text-primary">›</span>
+      </a>
       <Card>
         <CardTitle className="mb-1">Pantalla</CardTitle>
         <CardDescription className="mb-4">Tamaño de la letra en este celular.</CardDescription>

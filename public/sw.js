@@ -1,7 +1,7 @@
 // Service worker: permite instalar la app en el celular, recibe las notificaciones push y la abre sin internet.
 // Siempre pide los datos frescos; solo si no hay señal muestra la última versión guardada de la pantalla
 // (así puedes abrir Agregar y anotar un gasto, que se manda solo al volver la conexión).
-const CACHE = "taos-sin-internet-v1";
+const CACHE = "taos-sin-internet-v2";
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (evento) =>
   evento.waitUntil(
@@ -29,20 +29,44 @@ self.addEventListener("fetch", (evento) => {
     );
     return;
   }
-  // Pantallas: de internet primero; sin señal, la última guardada
+  // Pantallas: de internet primero; sin señal, la última guardada (máximo 7 días)
   if (r.mode === "navigate") {
     evento.respondWith(
       fetch(r)
-        .then((res) => {
-          if (res.ok && !res.redirected) {
-            const copia = res.clone();
-            caches.open(CACHE).then((c) => c.put(r, copia));
+        .then(async (res) => {
+          // Si el servidor manda a la entrada, la sesión ya no vale: se borran las pantallas guardadas
+          if (res.redirected && ENTRADAS.some((e) => new URL(res.url).pathname.startsWith(e))) await borrarPantallas();
+          else if (res.ok && !res.redirected && !ENTRADAS.some((e) => url.pathname.startsWith(e))) {
+            const cuerpo = await res.clone().blob();
+            const h = new Headers(res.headers);
+            h.set("x-taos-guardado", String(Date.now()));
+            const c = await caches.open(CACHE);
+            await c.put(r, new Response(cuerpo, { status: 200, headers: h }));
           }
           return res;
         })
-        .catch(async () => (await caches.match(r)) || (await caches.match("/agregar")) || (await caches.match("/")) || Response.error()),
+        .catch(async () => (await reciente(r)) || (await reciente("/agregar")) || (await reciente("/")) || Response.error()),
     );
   }
+});
+
+// Seguridad (S15): lo guardado sin internet no debe quedar a la vista si ya no hay sesión
+const ENTRADAS = ["/login", "/acceso-denegado", "/auth"];
+const MAX_EDAD = 7 * 24 * 60 * 60 * 1000;
+async function borrarPantallas() {
+  const c = await caches.open(CACHE);
+  for (const k of await c.keys()) if (new URL(k.url).pathname.startsWith("/_next/static/") === false && !/\.(png|svg|ico|woff2?)$/.test(new URL(k.url).pathname)) await c.delete(k);
+}
+async function reciente(r) {
+  const res = await caches.match(r);
+  if (!res) return undefined;
+  const guardado = Number(res.headers.get("x-taos-guardado") || 0);
+  if (Date.now() - guardado > MAX_EDAD) return undefined; // vieja o de antes de este cambio: no se muestra
+  return res;
+}
+// La pantalla de entrada avisa que no hay sesión
+self.addEventListener("message", (evento) => {
+  if (evento.data && evento.data.tipo === "taos-sin-sesion") evento.waitUntil(borrarPantallas());
 });
 
 // Bandeja de avisos (la campana 🔔 de la app): se guardan los últimos 30 en este celular, sin servidor

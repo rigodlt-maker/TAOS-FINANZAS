@@ -75,8 +75,21 @@ function cuentaPorEntidad(entidad: string, cuentas: Cuenta[], excepto: string | 
   return candidatas.length === 1 ? candidatas[0] : null;
 }
 
+// Dominio real del remitente (lo que va después de la @), sin el nombre visible: "Nu <x@nu.com.mx.otro.example>" → "otro.example".
+// Solo cuenta la parte registrada del dominio (las últimas 2 partes, o 3 si termina en .com.mx, .com.br…), así un
+// nombre o subdominio engañoso no se hace pasar por el banco.
+export function dominioRemitente(de: string): string | null {
+  const correo = (de.match(/<([^<>\s]+@[^<>\s]+)>/)?.[1] ?? de.match(/[^\s<>"]+@[^\s<>"]+/)?.[0] ?? "").toLowerCase().trim();
+  const dominio = correo.split("@")[1]?.replace(/[>.\s]+$/, "");
+  if (!dominio || !/^[a-z0-9.-]+$/.test(dominio)) return null;
+  const partes = dominio.split(".");
+  const n = /\.(com|net|org|gob|edu)\.[a-z]{2}$/.test(dominio) ? 3 : 2;
+  return partes.slice(-n).join(".");
+}
+
 export function leerCorreo(c: CorreoEntrante, cuentas: Cuenta[]): Lectura | null {
-  const de = c.de.toLowerCase();
+  const de = dominioRemitente(c.de);
+  if (!de) return null;
   const banco = BANCOS.find(([, remitente]) => remitente.test(de));
   if (!banco) return null;
   const [nombreBanco, , palabra] = banco;
@@ -260,13 +273,14 @@ async function yaRegistrado(repo: Repo, correo: CorreoBanco, fecha: string): Pro
     if (p) return { texto: `Ya lo tenías registrado como préstamo a ${p.persona}.` };
   }
   // Lo que tú anotaste antes que llegara el correo (chat, captura rápida, foto del ticket o a mano), mismo monto ±2 días.
-  // Cada movimiento empata con un solo aviso (dos cafés iguales = dos avisos); primero en la misma cuenta del aviso.
+  // Cada movimiento empata con un solo aviso (dos cafés iguales = dos avisos) y solo en la misma cuenta del aviso.
   const tipo = correo.clase === "entrada" ? "ingreso" : "gasto";
   const usados = new Set((await repo.correos({ estado: "duplicado" }).catch(() => [])).map((c) => c.movimiento_hash).filter(Boolean));
   const candidatos = (await repo.movimientos({ desde: sumarDias(fecha, -2), hasta: sumarDias(fecha, 2) })).filter(
     (x) => x.tipo === tipo && mismo(x.monto) && anotadoPorTi(x) && !usados.has(x.hash_unico),
   );
-  const m = candidatos.find((x) => x.account_id === correo.cuenta_id) ?? candidatos[0];
+  // Solo cuenta como el mismo si es de la misma cuenta: $80 en efectivo y $80 con la Nu son dos compras distintas (S13)
+  const m = correo.cuenta_id ? candidatos.find((x) => x.account_id === correo.cuenta_id) : undefined;
   return m ? { texto: `Ya lo tenías registrado: ${tipo} de ${dinero(correo.monto)} (${m.comercio ?? m.descripcion_original}).`, movimiento_hash: m.hash_unico } : null;
 }
 

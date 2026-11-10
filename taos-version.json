@@ -3,6 +3,8 @@
   "fecha": "2026-11-10",
   "novedades": [
     "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",
-    "TAOS funciona 100% con reglas gratis: se quitó la opción de IA de pago."
+    "TAOS funciona 100% con reglas gratis: se quitó la opción de IA de pago.",
+    "Avisos del banco: solo se toman como compra los correos que vienen del dominio real del banco.",
+    "Una compra del correo ya no se confunde con otra del mismo monto en una cuenta distinta."
   ]
 }

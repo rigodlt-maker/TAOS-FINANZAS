@@ -1,7 +1,7 @@
 // Avisos de banco leídos del correo: se registran solos, en pareja y sin duplicar
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { confirmarCorreo, deshacerCorreo, leerCorreo, procesarCorreos, type CorreoEntrante } from "../lib/correos";
+import { confirmarCorreo, deshacerCorreo, dominioRemitente, leerCorreo, procesarCorreos, type CorreoEntrante } from "../lib/correos";
 import { repoMemoria } from "../lib/datos/memoria";
 import type { Cuenta } from "../lib/tipos";
 
@@ -187,3 +187,21 @@ test("compra que ya anotaste (foto, captura o a mano) no se duplica al llegar el
   assert.equal((await repo.movimientos()).filter((m) => m.monto === 85).length, 2);
 });
 
+
+test("S12: el banco se reconoce por el dominio real del correo, no por el nombre ni un subdominio engañoso", () => {
+  const base = { asunto: "Compra aprobada", texto: "Realizaste una compra de $250.00 en OXXO con tu tarjeta Nu", fecha: "2026-11-09" };
+  assert.equal(leerCorreo({ ...base, de: "Nu <avisos@nu.com.mx.atacante.example>" } as never, []), null);
+  assert.equal(leerCorreo({ ...base, de: "Nu Banco <persona@otro.example>" } as never, []), null);
+  assert.equal(dominioRemitente("Nu México <nu@nu.com.mx>"), "nu.com.mx");
+  assert.equal(dominioRemitente("HSBC_ClientesMX@notificaciones.hsbc.com.mx"), "hsbc.com.mx");
+  assert.equal(dominioRemitente("AmericanExpress@welcome.americanexpress.com"), "americanexpress.com");
+});
+
+test("S13: $80 en efectivo y $80 con la Nu son dos compras distintas (no se toma una por la otra)", async () => {
+  const { repo, cuenta } = await nuevoRepo();
+  const efectivo = await cuenta("EFECTIVO");
+  await repo.insertarMovimientos([{ account_id: efectivo.id, fecha: "2026-10-26", comercio: "Tacos", monto: 80, tipo: "gasto", category_id: null, requiere_revision: false, es_recurrente: false, import_id: null, descripcion_original: "80 tacos efectivo", hash_unico: "ef80" }]);
+  const r = await procesarCorreos(repo, [{ id: "c80", de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Hola Juan Carlos. Compra aprobada con tu tarjeta de crédito Nu por $80.00 en OXXO el 27 OCT 2026." }]);
+  assert.equal(r.duplicados, 0);
+  assert.equal((await repo.movimientos()).filter((m) => m.monto === 80).length, 2);
+});

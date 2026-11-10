@@ -213,6 +213,7 @@ export default async function Pagos({ searchParams }: { searchParams: Promise<{ 
                 return (
                   <Desplegable
                     key={p.id}
+                    etiqueta="Editar"
                     titulo={
                       <span className="flex flex-1 items-center justify-between gap-2">
                         <span>

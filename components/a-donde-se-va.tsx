@@ -1,7 +1,7 @@
 // "¿A dónde se va mi dinero?" (dona por categoría + Debo / Necesito / Quiero) y "Tendencia del saldo". SVG propio, sin librerías.
 import Link from "next/link";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { dinero, dineroCorto, fechaCorta } from "@/lib/formato";
+import { dinero, fechaCorta } from "@/lib/formato";
 import type { gastoPorCategoria, resumenNaturaleza, tendenciaSaldo } from "@/lib/naturaleza";
 
 const COLORES = ["#d4af37", "#f0d878", "#9c7f2a", "#b8b8b8", "#777777", "#4a4a4a"];
@@ -62,7 +62,7 @@ export function ADondeSeVa({ dona, naturaleza, periodo }: { dona: ReturnType<typ
               <p className="text-sm">
                 {p.emoji} <span className="font-semibold">{p.nombre}</span>
               </p>
-              <p className="mt-0.5 font-semibold">{dineroCorto(p.monto)}</p>
+              <p className="mt-0.5 text-sm font-semibold tabular-nums">{dinero(p.monto)}</p>
               <p className="text-xs text-muted-foreground">{Math.round(p.porcentaje)}%</p>
             </li>
           ))}
@@ -122,7 +122,7 @@ export function TendenciaSaldo({ puntos }: { puntos: ReturnType<typeof tendencia
         <span>{fechaCorta(puntos[0].fecha)}</span>
         <span>Hoy</span>
       </div>
-      <CardDescription>Suma de tus cuentas (lo que tienes menos lo que debes de tarjetas), según tus movimientos.</CardDescription>
+      <CardDescription>Suma de tus cuentas (lo que tienes menos lo que debes de tarjetas), según tus movimientos. Sube cuando entra un ingreso (por ejemplo, cada quincena) y baja con tus gastos.</CardDescription>
     </Card>
   );
 }

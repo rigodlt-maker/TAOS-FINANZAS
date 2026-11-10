@@ -70,7 +70,7 @@ export default async function Presupuesto() {
                               {r.diferencia >= 0 ? `Quedan ${dinero(r.diferencia)}` : `Excedido por ${dinero(-r.diferencia)}`} ·{" "}
                               {Math.round(r.porcentajeGastado)}% gastado
                             </span>
-                            <span>Al cierre: ~{dineroCorto(r.proyeccion)}</span>
+                            <span>Si sigues así: ~{dinero(r.proyeccion)} al cierre del mes</span>
                           </div>
                         </>
                       )}

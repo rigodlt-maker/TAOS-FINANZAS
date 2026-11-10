@@ -94,12 +94,20 @@ export function BotonAccion({
 }
 
 // Sección que se abre y se cierra (para formularios de edición)
-export function Desplegable({ titulo, children, abierto = false }: { titulo: React.ReactNode; children: React.ReactNode; abierto?: boolean }) {
+// `etiqueta`: palabra que dice qué hace el botón (p. ej. "Editar"); sin ella se ve el "+" de siempre
+export function Desplegable({ titulo, children, abierto = false, etiqueta }: { titulo: React.ReactNode; children: React.ReactNode; abierto?: boolean; etiqueta?: string }) {
   return (
     <details className="group rounded-2xl border bg-card" open={abierto}>
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-2 px-4 font-medium">
         {titulo}
-        <span className="text-xl text-muted-foreground transition-transform group-open:rotate-45">+</span>
+        {etiqueta ? (
+          <span className="shrink-0 rounded-lg border px-2.5 py-1 text-xs font-normal text-muted-foreground">
+            <span className="group-open:hidden">{etiqueta}</span>
+            <span className="hidden group-open:inline">Cerrar</span>
+          </span>
+        ) : (
+          <span className="text-xl text-muted-foreground transition-transform group-open:rotate-45">+</span>
+        )}
       </summary>
       <div className="border-t p-4">{children}</div>
     </details>

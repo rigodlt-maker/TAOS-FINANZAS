@@ -40,7 +40,7 @@ export function gastoPorCategoria(movimientos: Pick<Movimiento, "tipo" | "monto"
   const nombre = new Map(categorias.map((c) => [c.id, c.nombre]));
   const suma = new Map<string, number>();
   for (const m of movimientos) if (m.tipo === "gasto") {
-    const k = (m.category_id && nombre.get(m.category_id)) || "Sin categoría";
+    const k = (m.category_id && nombre.get(m.category_id)) || "Sin categoría todavía";
     suma.set(k, (suma.get(k) ?? 0) + m.monto);
   }
   const lista = [...suma].map(([nombre, monto]) => ({ nombre, monto })).sort((a, b) => b.monto - a.monto);

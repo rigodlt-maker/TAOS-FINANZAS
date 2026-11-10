@@ -20,7 +20,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Traer la versión nueva de TAOS
         run: |
-          git clone --depth 1 https://github.com/rigodlt-maker/taos-finanzas.git /tmp/taos
+          # Solo la versión que TAOS ya probó y aprobó (rama "estable"); si todavía no existe, la de main
+          git clone --depth 1 --branch estable https://github.com/rigodlt-maker/taos-finanzas.git /tmp/taos \
+            || git clone --depth 1 https://github.com/rigodlt-maker/taos-finanzas.git /tmp/taos
           rsync -a --delete --exclude .git --exclude .github/workflows /tmp/taos/ ./
           # A nombre del dueño del repositorio: así Vercel acepta publicar el cambio
           git config user.name "${{ github.repository_owner }}"

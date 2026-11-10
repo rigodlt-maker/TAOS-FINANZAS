@@ -4,6 +4,17 @@
 export const LICENCIAS_URL = "https://taos-licencias.rigo-dlt-1a7.workers.dev";
 export const APP_TAOS = "finanzas";
 
+// Prueba de que eres el dueño al crear la contraseña la primera vez: solo tú sabes el código que pegaste en Vercel.
+// (Sin esto, alguien que conociera tu dirección y tu correo podría crear la contraseña antes que tú.)
+export function codigoCoincide(escrito: string | undefined, variables: Record<string, string | undefined> = process.env): boolean {
+  const a = normalizarCodigo(escrito);
+  const b = normalizarCodigo(variables.CODIGO_COMPRA);
+  if (!a || !b || a.length !== b.length) return false;
+  let diferencia = 0;
+  for (let i = 0; i < a.length; i++) diferencia |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diferencia === 0;
+}
+
 export type Licencia = { ok: true } | { ok: false; problema: string };
 
 export const normalizarCodigo = (codigo?: string) => (codigo ?? "").replace(/\s+/g, "").toUpperCase();

@@ -392,7 +392,7 @@ export async function leerEstadoDeCuenta(f: FormData): Promise<
 > {
   try {
     if (!iaDisponible()) {
-      return { ok: false, mensaje: "Leer PDF requiere la IA (ANTHROPIC_API_KEY). Mientras tanto, descarga el estado de cuenta en CSV o Excel desde tu banca en línea." };
+      return { ok: false, mensaje: "Por ahora no se pueden leer PDF. Descarga el estado de cuenta en CSV o Excel desde tu banca en línea." };
     }
     const archivo = f.get("archivo");
     if (!(archivo instanceof File) || archivo.type !== "application/pdf") return { ok: false, mensaje: "Elige un archivo PDF." };

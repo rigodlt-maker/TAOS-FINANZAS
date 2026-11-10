@@ -148,7 +148,7 @@ export function ImportadorPdf({ cuentas, iaActiva }: { cuentas: Cuenta[]; iaActi
   if (!iaActiva) {
     return (
       <p className="text-sm text-muted-foreground">
-        Leer PDF necesita la IA activada (ANTHROPIC_API_KEY). Mientras tanto, descarga tu estado de cuenta en CSV o Excel desde
+        Por ahora no se pueden leer PDF. Descarga tu estado de cuenta en CSV o Excel desde
         la banca en línea y súbelo arriba.
       </p>
     );

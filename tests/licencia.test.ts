@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { revisarLicencia } from "../lib/licencia";
+import { codigoCoincide, revisarLicencia } from "../lib/licencia";
 
 const respuesta = (datos: unknown, estado = 200) => (async () => new Response(JSON.stringify(datos), { status: estado })) as unknown as typeof fetch;
 
@@ -34,4 +34,12 @@ test("si el servidor falla, la app sigue funcionando", async () => {
   assert.equal((await revisarLicencia({ CODIGO_COMPRA: "HP1" }, respuesta({}, 500))).ok, true);
   const caido = (async () => { throw new Error("fetch failed"); }) as unknown as typeof fetch;
   assert.equal((await revisarLicencia({ CODIGO_COMPRA: "HP1" }, caido)).ok, true);
+});
+
+test("crear la contraseña pide el mismo código de compra de Vercel", () => {
+  const v = { CODIGO_COMPRA: "HP1234567890" };
+  assert.equal(codigoCoincide("hp 1234567890", v), true);
+  assert.equal(codigoCoincide("HP1234567891", v), false);
+  assert.equal(codigoCoincide("", v), false);
+  assert.equal(codigoCoincide("HP1234567890", {}), false);
 });

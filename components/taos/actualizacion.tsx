@@ -48,7 +48,10 @@ export function Actualizacion({ repo }: { repo: string }) {
     if (!vista) guardar(VISTA, actual.version); // recién instalada: no hay "novedades" que contar
     else if (esMasNueva(actual.version, vista)) setNovedades(true);
     // ¿Ya hay otra versión publicada?
-    fetch(`https://raw.githubusercontent.com/rigodlt-maker/${repo}/main/taos-version.json`, { cache: "no-store" })
+    // Solo cuenta la versión aprobada (rama "estable"); si todavía no existe, la de main
+    const de = (rama: string) => fetch(`https://raw.githubusercontent.com/rigodlt-maker/${repo}/${rama}/taos-version.json`, { cache: "no-store" });
+    de("estable")
+      .then((r) => (r.ok ? r : de("main")))
       .then((r) => (r.ok ? r.json() : null))
       .then((r: Version | null) => {
         if (r?.version && esMasNueva(r.version, actual.version) && leer(OCULTA) !== r.version) setNueva(r);

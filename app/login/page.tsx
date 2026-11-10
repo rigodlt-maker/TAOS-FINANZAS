@@ -72,11 +72,15 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <form action={crearContrasena} className="mt-4 grid gap-4">
             <div className="grid gap-1 text-sm">
               <p className="font-semibold">Paso 3 de 3 · Crea tu contraseña</p>
-              <p className="text-muted-foreground">Es la primera vez que entras. Escribe tu correo (el mismo que pusiste en Vercel) y crea una contraseña. No te llegará ningún correo: entras al momento.</p>
+              <p className="text-muted-foreground">Es la primera vez que entras. Escribe tu correo y tu código de compra (los mismos que pusiste en Vercel) y crea una contraseña. No te llegará ningún correo: entras al momento.</p>
             </div>
             <Label>
               Tu correo
               <Input name="correo" type="email" required autoComplete="email" placeholder="tunombre@gmail.com" />
+            </Label>
+            <Label>
+              Tu código de compra (el que pegaste en Vercel)
+              <Input name="codigo" required autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="HP…" />
             </Label>
             <Label>
               Crea una contraseña (mínimo 8 caracteres)

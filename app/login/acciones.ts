@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { correoPermitido } from "@/lib/supabase/config";
 import { buscarDueno, puedeCrearContrasena } from "@/lib/instalacion";
-import { revisarLicencia } from "@/lib/licencia";
+import { codigoCoincide, revisarLicencia } from "@/lib/licencia";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import type { Resultado } from "@/lib/acciones";
@@ -70,6 +70,10 @@ export async function crearContrasena(formulario: FormData) {
   if (contrasena !== confirmar) volver("Las dos contraseñas no coinciden. Escríbelas otra vez.");
   const licencia = await revisarLicencia();
   if (!licencia.ok) volver(licencia.problema);
+  if (!codigoCoincide(String(formulario.get("codigo") ?? ""))) {
+    await new Promise((r) => setTimeout(r, 2000)); // pausa para que no se pueda adivinar a la fuerza
+    volver("Ese no es tu código de compra. Escribe el mismo que pegaste en CODIGO_COMPRA en Vercel (empieza con HP).");
+  }
 
   const dueno = await buscarDueno();
   if (!puedeCrearContrasena(dueno)) volver("Ya tienes contraseña: entra con ella (es la misma de tus otras apps TAOS).");

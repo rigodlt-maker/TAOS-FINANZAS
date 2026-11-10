@@ -1,9 +1,14 @@
 // Avisos de banco leídos del correo: se registran solos, en pareja y sin duplicar
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { confirmarCorreo, deshacerCorreo, dominioRemitente, leerCorreo, procesarCorreos, type CorreoEntrante } from "../lib/correos";
+import { bancoDelRemitente, confirmarCorreo, deshacerCorreo, esElMismoCorreo, hostRemitente, leerCorreo, procedenciaVerificada, procesarCorreos, type CorreoEntrante } from "../lib/correos";
 import { repoMemoria } from "../lib/datos/memoria";
 import type { Cuenta } from "../lib/tipos";
+
+// Los avisos de prueba llegan "firmados" como los pone Gmail (DKIM del banco aprobado); los de S12 prueban lo contrario
+const firmar = (c: CorreoEntrante): CorreoEntrante =>
+  c.auth !== undefined ? c : { ...c, auth: `mx.google.com; dkim=pass header.i=@${hostRemitente(c.de)}; dmarc=pass header.from=${hostRemitente(c.de)}` };
+const procesar = (repo: Parameters<typeof procesarCorreos>[0], cs: CorreoEntrante[]) => procesarCorreos(repo, cs.map(firmar));
 
 // Mismo formato que los correos reales de Nu y Revolut (con un nombre inventado)
 const correos = {
@@ -80,7 +85,7 @@ test("lee cada tipo de aviso", async () => {
 
 test("nada que mueva tus cuentas se registra solo: la app sugiere y tú confirmas; al confirmar una mitad se cierra la otra", async () => {
   const { repo, cuenta } = await nuevoRepo();
-  const r = await procesarCorreos(repo, [correos.nuRecibe, correos.revolutEnvio, correos.nuAHsbc, correos.hsbcRecordatorio, correos.revolutPromo]);
+  const r = await procesar(repo, [correos.nuRecibe, correos.revolutEnvio, correos.nuAHsbc, correos.hsbcRecordatorio, correos.revolutPromo]);
   assert.deepEqual(r, { recibidos: 5, nuevos: 3, aplicados: 0, pendientes: 3, duplicados: 0 });
   assert.equal((await cuenta("Revolut")).saldo_actual, 25170.31);
   const pendientes = await repo.correos({ estado: "pendiente" });
@@ -97,12 +102,12 @@ test("nada que mueva tus cuentas se registra solo: la app sugiere y tú confirma
   const hsbc = (await repo.correos({ estado: "pendiente" }))[0];
   assert.equal(sugerencias(hsbc, [], await repo.cuentas()).otra, (await cuenta("HSBC Viva")).id);
   // Mandar los mismos correos otra vez no hace nada
-  assert.equal((await procesarCorreos(repo, [correos.nuRecibe, correos.revolutEnvio])).nuevos, 0);
+  assert.equal((await procesar(repo, [correos.nuRecibe, correos.revolutEnvio])).nuevos, 0);
 });
 
 test("pago de tarjeta: confirmas de qué cuenta salió; deshacer lo regresa a pendientes", async () => {
   const { repo, cuenta } = await nuevoRepo();
-  await procesarCorreos(repo, [correos.nuPagoTarjeta]);
+  await procesar(repo, [correos.nuPagoTarjeta]);
   const [pendiente] = await repo.correos({ estado: "pendiente" });
   assert.match(pendiente.resultado!, /¿De qué cuenta salió/);
   await confirmarCorreo(repo, pendiente.id, { cuenta_id: pendiente.cuenta_id!, otra_id: (await cuenta("NU CAJITAS")).id });
@@ -119,7 +124,7 @@ test("si ya lo registraste en el chat, no lo duplica (y si no era el mismo, vuel
   const nu = await cuenta("NU CAJITAS");
   const tarjeta = await cuenta("Nu crédito");
   await repo.crearTransferencia({ fecha: "2026-10-27", origen_id: nu.id, destino_id: tarjeta.id, monto: 928.71, nota: "chat" });
-  const r = await procesarCorreos(repo, [correos.nuPagoTarjeta]);
+  const r = await procesar(repo, [correos.nuPagoTarjeta]);
   assert.equal(r.duplicados, 1);
   assert.equal((await repo.transferencias()).length, 1);
   const [c] = await repo.correos();
@@ -131,7 +136,7 @@ test("si ya lo registraste en el chat, no lo duplica (y si no era el mismo, vuel
 test("a otra persona: eliges la cuenta (no la adivina); puede ser gasto o préstamo", async () => {
   const { repo, cuenta } = await nuevoRepo();
   await repo.crearCuenta({ nombre: "Cajita Ahorro", tipo: "ahorro", saldo_actual: 15200.50, dia_corte: null, dia_limite_pago: null, es_ejemplo: false });
-  await procesarCorreos(repo, [correos.nuAOtro]);
+  await procesar(repo, [correos.nuAOtro]);
   const [c] = await repo.correos({ estado: "pendiente" });
   assert.match(c.resultado!, /¿De qué cuenta salió\? ¿Es un préstamo\?/);
   assert.equal((await cuenta("NU CAJITAS")).saldo_actual, 0);
@@ -152,7 +157,7 @@ test("a otra persona: eliges la cuenta (no la adivina); puede ser gasto o prést
 test("si ya lo registraste como préstamo en el chat, el correo no lo duplica", async () => {
   const { repo, cuenta } = await nuevoRepo();
   await repo.crearPrestamo({ persona: "María", monto: 500, abonado: 0, cuenta_id: (await cuenta("NU CAJITAS")).id, fecha: "2026-10-26", fecha_pago: null, nota: null, liquidado_el: null });
-  const r = await procesarCorreos(repo, [correos.nuAOtro]);
+  const r = await procesar(repo, [correos.nuAOtro]);
   assert.equal(r.duplicados, 1);
 });
 
@@ -164,7 +169,7 @@ test("bonificación por puntos Membership Rewards: baja la deuda de la Amex (no 
     id: "g8", de: "AmericanExpress@welcome.americanexpress.com", fecha: "2026-10-27T19:00:16Z", asunto: "Tu bonificación por tus Puntos.",
     texto: "Confirmación del uso de Puntos Membership Rewards | Hola, JUAN C PEREZ L Terminación de la Tarjeta: 72001 | Recibiste una bonificación por tus Puntos Membership Rewards | Los detalles de tu canje de Puntos: | Puntos Utilizados: | 2,240 | Monto de la bonificación: | MX$224.00 | Recuerda que aún necesitas realizar tu Pago1",
   };
-  const r = await procesarCorreos(repo, [amex]);
+  const r = await procesar(repo, [amex]);
   assert.equal(r.aplicados, 1);
   assert.equal((await cuenta("Amex")).saldo_actual, -21192);
   assert.equal((await cuenta("Amex Aeroméxico")).saldo_actual, -3500);
@@ -172,36 +177,103 @@ test("bonificación por puntos Membership Rewards: baja la deuda de la Amex (no 
   assert.match(c.resultado!, /No cuenta como pago de tu corte/);
 });
 
-test("compra que ya anotaste (foto, captura o a mano) no se duplica al llegar el correo; cada anotación empata con un solo aviso", async () => {
+test("compra que ya anotaste (foto, captura o a mano): te pregunta si es la misma y no se duplica; cada anotación empata con un solo aviso", async () => {
   const { repo, cuenta } = await nuevoRepo();
   const tarjeta = await cuenta("Nu crédito");
   const base = { account_id: tarjeta.id, fecha: "2026-10-27", comercio: "Starbucks", monto: 85, tipo: "gasto" as const, category_id: null, requiere_revision: false, es_recurrente: false, import_id: null };
   await repo.insertarMovimientos([{ ...base, descripcion_original: "85 café nu", hash_unico: "abc123" }]);
   const compra = (id: string) => ({ id, de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Hola Juan Carlos. Compra aprobada con tu tarjeta de crédito Nu por $85.00 en STARBUCKS el 27 OCT 2026." });
-  const r1 = await procesarCorreos(repo, [compra("c1")]);
-  assert.equal(r1.duplicados, 1);
+  const r1 = await procesar(repo, [compra("c1")]);
+  assert.equal(r1.aplicados, 0);
+  const [p] = await repo.correos({ estado: "pendiente" });
+  assert.equal(p.movimiento_hash, "abc123");
+  await esElMismoCorreo(repo, p.id);
   assert.equal((await repo.movimientos()).filter((m) => m.monto === 85).length, 1);
   // Un segundo café igual (sin anotar) sí se registra
-  const r2 = await procesarCorreos(repo, [compra("c2")]);
+  const r2 = await procesar(repo, [compra("c2")]);
   assert.equal(r2.duplicados, 0);
   assert.equal((await repo.movimientos()).filter((m) => m.monto === 85).length, 2);
 });
 
 
 test("S12: el banco se reconoce por el dominio real del correo, no por el nombre ni un subdominio engañoso", () => {
-  const base = { asunto: "Compra aprobada", texto: "Realizaste una compra de $250.00 en OXXO con tu tarjeta Nu", fecha: "2026-11-09" };
-  assert.equal(leerCorreo({ ...base, de: "Nu <avisos@nu.com.mx.atacante.example>" } as never, []), null);
-  assert.equal(leerCorreo({ ...base, de: "Nu Banco <persona@otro.example>" } as never, []), null);
-  assert.equal(dominioRemitente("Nu México <nu@nu.com.mx>"), "nu.com.mx");
-  assert.equal(dominioRemitente("HSBC_ClientesMX@notificaciones.hsbc.com.mx"), "hsbc.com.mx");
-  assert.equal(dominioRemitente("AmericanExpress@welcome.americanexpress.com"), "americanexpress.com");
+  const base = { id: "x", asunto: "Compra aprobada", texto: "Compra aprobada. Monto: $80.00 con tu tarjeta de crédito Nu", fecha: "2026-11-09" };
+  // R1: los dos ejemplos anteriores siguen rechazados
+  assert.equal(leerCorreo({ ...base, de: "Nu <avisos@nu.com.mx.atacante.example>" }, []), null);
+  assert.equal(leerCorreo({ ...base, de: "Nu Banco <persona@otro.example>" }, []), null);
+  // R2: dominios que solo "contienen" la marca
+  assert.equal(leerCorreo({ ...base, de: "avisos@bbva-falso.example" }, []), null);
+  assert.equal(leerCorreo({ ...base, de: "avisos@nubank-falso.example" }, []), null);
+  // R3: dominio exacto y subdominio permitido
+  assert.equal(bancoDelRemitente("Nu México <nu@nu.com.mx>")?.[0], "Nu");
+  assert.equal(bancoDelRemitente("HSBC_ClientesMX@notificaciones.hsbc.com.mx")?.[0], "HSBC");
+  assert.equal(bancoDelRemitente("AmericanExpress@welcome.americanexpress.com")?.[0], "Amex");
+  // R4: el dominio del banco al principio de otro, dos direcciones, host inválido
+  assert.equal(bancoDelRemitente("x@nu.com.mx.otro.example"), null);
+  assert.equal(hostRemitente("Nu <a@nu.com.mx> <b@atacante.example>"), null);
+  assert.equal(hostRemitente("a@nu.com.mx, b@atacante.example"), null);
+  assert.equal(hostRemitente("a@-nu.com.mx"), null);
+  assert.equal(hostRemitente("a@nu..com.mx"), null);
+});
+
+test("S12: sin prueba de Gmail de que viene del banco, el aviso queda pendiente y el saldo no cambia", async () => {
+  const { repo, cuenta } = await nuevoRepo();
+  const nu = await cuenta("Nu crédito");
+  const antes = nu.saldo_actual;
+  const compra = { id: "s12", de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Hola Juan Carlos. Compra aprobada con tu tarjeta de crédito Nu por $80.00 en OXXO el 27 OCT 2026." };
+  // R6: dominio correcto pero sin firma (o firma de otro dominio, o cabecera que no puso Gmail)
+  for (const auth of ["", "mx.google.com; dkim=pass header.i=@atacante.example", "otro.example; dkim=pass header.i=@nu.com.mx", "mx.google.com; dkim=fail header.i=@nu.com.mx"]) {
+    assert.equal(procedenciaVerificada({ ...compra, auth }), false, auth);
+  }
+  const r = await procesarCorreos(repo, [{ ...compra, auth: "" }]);
+  assert.equal(r.aplicados, 0);
+  assert.equal(r.pendientes, 1);
+  assert.equal((await repo.cuentas()).find((c) => c.id === nu.id)!.saldo_actual, antes);
+  assert.match((await repo.correos({ estado: "pendiente" }))[0].resultado ?? "", /No pude comprobar/);
+  // Con la firma de Gmail sí se registra solo
+  assert.equal(procedenciaVerificada(firmar(compra)), true);
+});
+
+test("S12: en un hilo, cada mensaje se revisa solo (la respuesta de otra persona no hereda la confianza)", async () => {
+  const { repo } = await nuevoRepo();
+  const banco = { id: "h1", de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Compra aprobada con tu tarjeta de crédito Nu por $80.00 en OXXO." };
+  const tercero = { ...banco, id: "h2", de: "Nu <amigo@gmail.com>", asunto: "RE: Compra aprobada" };
+  const r = await procesar(repo, [banco, tercero]);
+  assert.equal(r.nuevos, 1);
 });
 
 test("S13: $80 en efectivo y $80 con la Nu son dos compras distintas (no se toma una por la otra)", async () => {
   const { repo, cuenta } = await nuevoRepo();
   const efectivo = await cuenta("EFECTIVO");
   await repo.insertarMovimientos([{ account_id: efectivo.id, fecha: "2026-10-26", comercio: "Tacos", monto: 80, tipo: "gasto", category_id: null, requiere_revision: false, es_recurrente: false, import_id: null, descripcion_original: "80 tacos efectivo", hash_unico: "ef80" }]);
-  const r = await procesarCorreos(repo, [{ id: "c80", de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Hola Juan Carlos. Compra aprobada con tu tarjeta de crédito Nu por $80.00 en OXXO el 27 OCT 2026." }]);
+  const r = await procesar(repo, [{ id: "c80", de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Hola Juan Carlos. Compra aprobada con tu tarjeta de crédito Nu por $80.00 en OXXO el 27 OCT 2026." }]);
   assert.equal(r.duplicados, 0);
   assert.equal((await repo.movimientos()).filter((m) => m.monto === 80).length, 2);
+});
+
+test("S13 general: misma cuenta y mismo monto NO se descarta solo; te pregunta si es el mismo", async () => {
+  const { repo, cuenta } = await nuevoRepo();
+  const nu = await cuenta("Nu crédito");
+  await repo.insertarMovimientos([{ account_id: nu.id, fecha: "2026-10-26", comercio: "Tacos", monto: 80, tipo: "gasto", category_id: null, requiere_revision: false, es_recurrente: false, import_id: null, descripcion_original: "80 tacos", hash_unico: "nu80" }]);
+  const r = await procesar(repo, [{ id: "cafe80", de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Hola Juan Carlos. Compra aprobada con tu tarjeta de crédito Nu por $80.00 en CAFE el 27 OCT 2026." }]);
+  assert.equal(r.duplicados, 0);
+  assert.equal(r.aplicados, 0);
+  const [p] = await repo.correos({ estado: "pendiente" });
+  assert.match(p.resultado ?? "", /¿Es el mismo que ya anotaste: Tacos/);
+  // Si es otra compra: se registra (dos compras reales)
+  await confirmarCorreo(repo, p.id, { cuenta_id: nu.id });
+  assert.equal((await repo.movimientos()).filter((m) => m.monto === 80).length, 2);
+});
+
+test("S13 general: «Ya lo tenía anotado» lo marca como el mismo sin mover dinero", async () => {
+  const { repo, cuenta } = await nuevoRepo();
+  const nu = await cuenta("Nu crédito");
+  await repo.insertarMovimientos([{ account_id: nu.id, fecha: "2026-10-26", comercio: "Tacos", monto: 80, tipo: "gasto", category_id: null, requiere_revision: false, es_recurrente: false, import_id: null, descripcion_original: "80 tacos", hash_unico: "nu80b" }]);
+  const antes = (await repo.cuentas()).find((c) => c.id === nu.id)!.saldo_actual;
+  await procesar(repo, [{ id: "tacos80", de: "nu@nu.com.mx", fecha: "2026-10-27T15:00:00Z", asunto: "Compra aprobada", texto: "Compra aprobada con tu tarjeta de crédito Nu por $80.00 en TACOS el 27 OCT 2026." }]);
+  const [p] = await repo.correos({ estado: "pendiente" });
+  await esElMismoCorreo(repo, p.id);
+  assert.equal((await repo.correo(p.id))!.estado, "duplicado");
+  assert.equal((await repo.movimientos()).filter((m) => m.monto === 80).length, 1);
+  assert.equal((await repo.cuentas()).find((c) => c.id === nu.id)!.saldo_actual, antes);
 });

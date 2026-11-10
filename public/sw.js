@@ -1,8 +1,14 @@
-// Service worker: permite instalar la app en el celular, recibe las notificaciones push y la abre sin internet.
-// Siempre pide los datos frescos; solo si no hay señal muestra la última versión guardada de la pantalla
-// (así puedes abrir Agregar y anotar un gasto, que se manda solo al volver la conexión).
-const CACHE = "taos-sin-internet-v2";
-self.addEventListener("install", () => self.skipWaiting());
+// Service worker: permite instalar la app en el celular, recibe las notificaciones push y avisa cuando no hay internet.
+// Seguridad (S15): NUNCA se guardan pantallas con tus datos (saldos, movimientos). Solo los archivos públicos de la app
+// (código, íconos, letras) y una pantalla neutra "Sin internet" que no muestra nada tuyo y deja anotar un gasto,
+// que se manda solo cuando vuelve la señal.
+const CACHE = "taos-sin-internet-v3";
+const SIN_INTERNET = "/sin-internet.html";
+self.addEventListener("install", (evento) => {
+  self.skipWaiting();
+  evento.waitUntil(caches.open(CACHE).then((c) => c.add(new Request(SIN_INTERNET, { cache: "reload" }))).catch(() => {}));
+});
+// Al activarse se borran las cachés viejas (v1/v2 sí guardaban pantallas privadas)
 self.addEventListener("activate", (evento) =>
   evento.waitUntil(
     caches
@@ -11,13 +17,14 @@ self.addEventListener("activate", (evento) =>
       .then(() => self.clients.claim()),
   ),
 );
+const esPublico = (url) => url.pathname.startsWith("/_next/static/") || /\.(png|svg|ico|woff2?)$/.test(url.pathname) || url.pathname === SIN_INTERNET;
 self.addEventListener("fetch", (evento) => {
   const r = evento.request;
   if (r.method !== "GET") return;
   const url = new URL(r.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
-  // Archivos de la app (no cambian): del celular primero
-  if (url.pathname.startsWith("/_next/static/") || /\.(png|svg|ico|woff2?)$/.test(url.pathname)) {
+  // Archivos públicos de la app (no cambian): del celular primero
+  if (esPublico(url)) {
     evento.respondWith(
       caches.open(CACHE).then(async (c) => {
         const guardado = await c.match(r);
@@ -29,44 +36,20 @@ self.addEventListener("fetch", (evento) => {
     );
     return;
   }
-  // Pantallas: de internet primero; sin señal, la última guardada (máximo 7 días)
+  // Pantallas: siempre de internet y sin guardarlas; sin señal, la pantalla neutra
   if (r.mode === "navigate") {
-    evento.respondWith(
-      fetch(r)
-        .then(async (res) => {
-          // Si el servidor manda a la entrada, la sesión ya no vale: se borran las pantallas guardadas
-          if (res.redirected && ENTRADAS.some((e) => new URL(res.url).pathname.startsWith(e))) await borrarPantallas();
-          else if (res.ok && !res.redirected && !ENTRADAS.some((e) => url.pathname.startsWith(e))) {
-            const cuerpo = await res.clone().blob();
-            const h = new Headers(res.headers);
-            h.set("x-taos-guardado", String(Date.now()));
-            const c = await caches.open(CACHE);
-            await c.put(r, new Response(cuerpo, { status: 200, headers: h }));
-          }
-          return res;
-        })
-        .catch(async () => (await reciente(r)) || (await reciente("/agregar")) || (await reciente("/")) || Response.error()),
-    );
+    evento.respondWith(fetch(r).catch(async () => (await caches.match(SIN_INTERNET)) || Response.error()));
   }
 });
 
-// Seguridad (S15): lo guardado sin internet no debe quedar a la vista si ya no hay sesión
-const ENTRADAS = ["/login", "/acceso-denegado", "/auth"];
-const MAX_EDAD = 7 * 24 * 60 * 60 * 1000;
-async function borrarPantallas() {
-  const c = await caches.open(CACHE);
-  for (const k of await c.keys()) if (new URL(k.url).pathname.startsWith("/_next/static/") === false && !/\.(png|svg|ico|woff2?)$/.test(new URL(k.url).pathname)) await c.delete(k);
+// Sin sesión (pantalla de entrada o cierre de sesión): se borra lo que pudiera tener algo tuyo en este celular
+// (la bandeja de avisos de la campana) y cualquier caché vieja con pantallas
+async function limpiarSinSesion() {
+  for (const k of await caches.keys()) if (k === BANDEJA || (k.startsWith("taos-") && k !== CACHE)) await caches.delete(k);
+  for (const v of await self.clients.matchAll({ type: "window" })) v.postMessage({ tipo: "taos-aviso" });
 }
-async function reciente(r) {
-  const res = await caches.match(r);
-  if (!res) return undefined;
-  const guardado = Number(res.headers.get("x-taos-guardado") || 0);
-  if (Date.now() - guardado > MAX_EDAD) return undefined; // vieja o de antes de este cambio: no se muestra
-  return res;
-}
-// La pantalla de entrada avisa que no hay sesión
 self.addEventListener("message", (evento) => {
-  if (evento.data && evento.data.tipo === "taos-sin-sesion") evento.waitUntil(borrarPantallas());
+  if (evento.data && evento.data.tipo === "taos-sin-sesion") evento.waitUntil(limpiarSinSesion());
 });
 
 // Bandeja de avisos (la campana 🔔 de la app): se guardan los últimos 30 en este celular, sin servidor

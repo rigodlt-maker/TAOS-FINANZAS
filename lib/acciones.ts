@@ -5,7 +5,7 @@ import { interpretarCaptura } from "./captura";
 import { categorizarConReglas, patronParaRegla } from "./categorizar";
 import { proponerRecortes, type Recorte } from "./consejos";
 import { categoriasConPresupuesto, generarEjemplo } from "./ejemplo";
-import { confirmarCorreo, deshacerCorreo, ignorarCorreo } from "./correos";
+import { confirmarCorreo, deshacerCorreo, esElMismoCorreo, ignorarCorreo } from "./correos";
 import { deshacerEnvio, registrarCobro } from "./envios";
 import { contextoTarjetas, estadoTarjeta, ultimoCorte } from "./tarjetas";
 import { aplicarTransferencia, interpretarTransferencia, type TransferenciaInterpretada } from "./transferencias";
@@ -832,6 +832,16 @@ export async function confirmarAvisoCorreo(id: string, f: FormData): Promise<Res
     });
     refrescar();
     return { ok: true, mensaje: `Listo: ${mensaje}` };
+  } catch (e) {
+    return error(e);
+  }
+}
+
+export async function esElMismoAvisoCorreo(id: string): Promise<Resultado> {
+  try {
+    const mensaje = await esElMismoCorreo(await obtenerRepo(), id);
+    refrescar();
+    return { ok: true, mensaje };
   } catch (e) {
     return error(e);
   }

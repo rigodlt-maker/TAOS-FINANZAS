@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { REMITENTES } from "./correos";
 
 // Clave del script de Gmail: CORREOS_CLAVE si la pusiste en Vercel; si no, se deriva de la llave secreta de Supabase
 // (siempre la misma, y solo la ves tú en la app)
@@ -9,24 +10,8 @@ export function claveCorreos(): string | null {
   return createHmac("sha256", base).update("taos-finanzas:correos-gmail").digest("base64url").slice(0, 32);
 }
 
-// Remitentes de bancos que se revisan
-export const REMITENTES = [
-  "nu.com.mx",
-  "revolut.com",
-  "hsbc.com.mx",
-  "bbva.mx",
-  "bbva.com",
-  "americanexpress.com",
-  "aexp.com",
-  "palaciodehierro.com",
-  "liverpool.com.mx",
-  "banamex.com",
-  "santander.com.mx",
-  "banorte.com",
-  "mercadopago.com",
-  "plata.com.mx",
-  "stori.mx",
-];
+// Remitentes de bancos que se revisan: los mismos dominios verificados de lib/correos.ts (una sola lista)
+export { REMITENTES };
 
 // Script de Google Apps Script que vive en tu cuenta de Google: cada 10 minutos busca avisos del banco y los manda a la app
 export function scriptGmail(urlApp: string, clave: string): string {
@@ -51,7 +36,8 @@ function revisarCorreos() {
   GmailApp.search(BANCOS + " newer_than:2d", 0, 50).forEach((hilo) =>
     hilo.getMessages().forEach((m) => {
       if (m.getDate().getTime() < desde) return;
-      correos.push({ id: m.getId(), de: m.getFrom(), asunto: m.getSubject(), fecha: m.getDate().toISOString(), texto: m.getPlainBody().slice(0, 8000) });
+      // "auth": la revisión que hizo Gmail al recibirlo (firma del banco). Sin ella el aviso queda para que lo confirmes.
+      correos.push({ id: m.getId(), de: m.getFrom(), asunto: m.getSubject(), fecha: m.getDate().toISOString(), texto: m.getPlainBody().slice(0, 8000), auth: String(m.getHeader("Authentication-Results") || "").slice(0, 2000) });
     }),
   );
   if (!correos.length) return;

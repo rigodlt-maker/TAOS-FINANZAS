@@ -4,7 +4,7 @@ import { BotonAccion, Formulario } from "@/components/formulario";
 import { Titulo } from "@/components/taos/encabezado";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/campos";
-import { confirmarAvisoCorreo, deshacerAvisoCorreo, ignorarAvisoCorreo } from "@/lib/acciones";
+import { confirmarAvisoCorreo, deshacerAvisoCorreo, esElMismoAvisoCorreo, ignorarAvisoCorreo } from "@/lib/acciones";
 import { diaDe, sugerencias } from "@/lib/correos";
 import { dinero, fechaCorta } from "@/lib/formato";
 import { obtenerRepo } from "@/lib/sesion";
@@ -115,6 +115,11 @@ export default async function Correos() {
                 </details>
               )}
             </Formulario>
+            {c.movimiento_hash && (
+              <BotonAccion accion={esElMismoAvisoCorreo.bind(null, c.id)} variant="outline">
+                Ya lo tenía anotado
+              </BotonAccion>
+            )}
             <div>
               <BotonAccion accion={ignorarAvisoCorreo.bind(null, c.id)} variant="ghost">
                 Ignorar este aviso

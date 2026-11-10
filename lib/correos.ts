@@ -9,7 +9,8 @@ import { dinero, hoyLocal, normalizar, redondear, sumarDias } from "./formato";
 import { aplicarTransferencia } from "./transferencias";
 import type { ClaseCorreo, CorreoBanco, Cuenta } from "./tipos";
 
-export type CorreoEntrante = { id: string; de: string; asunto: string; fecha: string; texto: string };
+// auth: la cabecera "Authentication-Results" que Gmail le pone al correo al recibirlo (la manda el script de Gmail)
+export type CorreoEntrante = { id: string; de: string; asunto: string; fecha: string; texto: string; auth?: string };
 
 export type Lectura = {
   banco: string;
@@ -21,22 +22,25 @@ export type Lectura = {
   cuenta_id: string | null;
 };
 
-// Remitente → banco, y la palabra con que aparece en el nombre de tus cuentas
-const BANCOS: [string, RegExp, RegExp][] = [
-  ["Nu", /nu\.com\.mx|nubank/, /\bnu\b/],
-  ["Revolut", /revolut/, /\brevolut\b/],
-  ["HSBC", /hsbc/, /\bhsbc\b/],
-  ["BBVA", /bbva/, /\bbbva\b/],
-  ["Amex", /americanexpress|aexp/, /\bamex\b|american express/],
-  ["Palacio de Hierro", /palaciodehierro/, /\bpalacio\b/],
-  ["Liverpool", /liverpool/, /\bliverpool\b/],
-  ["Banamex", /banamex|citi/, /\bbanamex\b|\bciti\b/],
-  ["Santander", /santander/, /\bsantander\b/],
-  ["Banorte", /banorte/, /\bbanorte\b/],
-  ["Mercado Pago", /mercadopago/, /\bmercado ?pago\b/],
-  ["Plata", /plata(card)?\.(com|mx)/, /\bplata\b/],
-  ["Stori", /stori/, /\bstori\b/],
+// Banco → sus dominios verificados (S12) y la palabra con que aparece en el nombre de tus cuentas.
+// El remitente tiene que ser EXACTAMENTE uno de esos dominios o un subdominio suyo (avisos.bbva.mx sí; bbva-falso.example no).
+const BANCOS: [string, string[], RegExp][] = [
+  ["Nu", ["nu.com.mx"], /\bnu\b/],
+  ["Revolut", ["revolut.com"], /\brevolut\b/],
+  ["HSBC", ["hsbc.com.mx"], /\bhsbc\b/],
+  ["BBVA", ["bbva.mx", "bbva.com"], /\bbbva\b/],
+  ["Amex", ["americanexpress.com", "aexp.com"], /\bamex\b|american express/],
+  ["Palacio de Hierro", ["palaciodehierro.com"], /\bpalacio\b/],
+  ["Liverpool", ["liverpool.com.mx"], /\bliverpool\b/],
+  ["Banamex", ["banamex.com"], /\bbanamex\b|\bciti\b/],
+  ["Santander", ["santander.com.mx"], /\bsantander\b/],
+  ["Banorte", ["banorte.com"], /\bbanorte\b/],
+  ["Mercado Pago", ["mercadopago.com", "mercadopago.com.mx"], /\bmercado ?pago\b/],
+  ["Plata", ["plata.com.mx"], /\bplata\b/],
+  ["Stori", ["stori.mx"], /\bstori\b/],
 ];
+// Lo que busca el script de Gmail (los mismos dominios, para que no haya dos listas)
+export const REMITENTES = BANCOS.flatMap(([, dominios]) => dominios);
 
 // Correos que no son movimientos (recordatorios, códigos, promociones)
 const NO_ES_MOVIMIENTO = /no olvides|recordatorio|se aproxima|fecha limite|codigo|contrasena|verifica|promoci|gana |ganar |invita|opinion|encuesta|estado de cuenta|beneficio|agregaste un contacto|inicio de sesion|nuevo dispositivo/;
@@ -75,22 +79,48 @@ function cuentaPorEntidad(entidad: string, cuentas: Cuenta[], excepto: string | 
   return candidatas.length === 1 ? candidatas[0] : null;
 }
 
-// Dominio real del remitente (lo que va después de la @), sin el nombre visible: "Nu <x@nu.com.mx.otro.example>" → "otro.example".
-// Solo cuenta la parte registrada del dominio (las últimas 2 partes, o 3 si termina en .com.mx, .com.br…), así un
-// nombre o subdominio engañoso no se hace pasar por el banco.
-export function dominioRemitente(de: string): string | null {
-  const correo = (de.match(/<([^<>\s]+@[^<>\s]+)>/)?.[1] ?? de.match(/[^\s<>"]+@[^\s<>"]+/)?.[0] ?? "").toLowerCase().trim();
-  const dominio = correo.split("@")[1]?.replace(/[>.\s]+$/, "");
-  if (!dominio || !/^[a-z0-9.-]+$/.test(dominio)) return null;
-  const partes = dominio.split(".");
-  const n = /\.(com|net|org|gob|edu)\.[a-z]{2}$/.test(dominio) ? 3 : 2;
-  return partes.slice(-n).join(".");
+// Host completo del remitente (lo que va después de la @), sin el nombre visible. Debe haber UNA sola dirección válida:
+// con dos direcciones, o un host mal formado, no se escoge ninguna (null).
+export function hostRemitente(de: string): string | null {
+  const dentro = [...de.matchAll(/<([^<>]*)>/g)].map((m) => m[1].trim());
+  let correo: string;
+  if (dentro.length > 1) return null;
+  if (dentro.length === 1) correo = dentro[0];
+  else {
+    const sueltas = de.match(/[^\s<>",;]+@[^\s<>",;]+/g) ?? [];
+    if (sueltas.length !== 1) return null;
+    correo = sueltas[0];
+  }
+  const partes = correo.toLowerCase().split("@");
+  if (partes.length !== 2 || !partes[0]) return null;
+  const host = partes[1];
+  if (host.length > 253 || !/^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/.test(host)) return null;
+  return host;
+}
+
+// Igual al dominio permitido o subdominio suyo; nunca "contiene" (S12)
+export const coincideDominio = (host: string, permitido: string) => host === permitido || host.endsWith(`.${permitido}`);
+
+export function bancoDelRemitente(de: string) {
+  const host = hostRemitente(de);
+  return host ? (BANCOS.find(([, dominios]) => dominios.some((d) => coincideDominio(host, d))) ?? null) : null;
+}
+
+// ¿Se puede comprobar que el correo sí viene del banco? Solo con la cabecera que pone Gmail al recibirlo
+// (empieza con "mx.google.com;") y una firma DKIM o DMARC aprobada de uno de los dominios de ESE banco.
+// Sin esa prueba el aviso queda pendiente para que tú lo confirmes: nunca mueve tu saldo solo (S12).
+export function procedenciaVerificada(c: CorreoEntrante): boolean {
+  const banco = bancoDelRemitente(c.de);
+  const a = (c.auth ?? "").toLowerCase();
+  if (!banco || !/^\s*mx\.google\.com\s*;/.test(a)) return false;
+  const delBanco = (d: string) => banco[1].some((p) => coincideDominio(d.replace(/^@/, "").replace(/[.;,\s]+$/, ""), p));
+  for (const m of a.matchAll(/\bdkim=pass\b[^;]*?\bheader\.[di]=@?([a-z0-9.-]+)/g)) if (delBanco(m[1])) return true;
+  for (const m of a.matchAll(/\bdmarc=pass\b[^;]*?\bheader\.from=([a-z0-9.-]+)/g)) if (delBanco(m[1])) return true;
+  return false;
 }
 
 export function leerCorreo(c: CorreoEntrante, cuentas: Cuenta[]): Lectura | null {
-  const de = dominioRemitente(c.de);
-  if (!de) return null;
-  const banco = BANCOS.find(([, remitente]) => remitente.test(de));
+  const banco = bancoDelRemitente(c.de);
   if (!banco) return null;
   const [nombreBanco, , palabra] = banco;
   const texto = `${c.asunto}\n${c.texto}`.replace(/[|*•]/g, " ").replace(/\s+/g, " ");
@@ -262,7 +292,11 @@ const cercaDeFecha = (a: string, b: string) => Math.abs(Date.parse(a) - Date.par
 const anotadoPorTi = (m: { hash_unico: string; import_id: string | null; descripcion_original: string }) =>
   m.import_id === null && !/^(correo:|ejemplo-)/.test(m.hash_unico) && !m.descripcion_original.startsWith("Rendimiento ");
 
-async function yaRegistrado(repo: Repo, correo: CorreoBanco, fecha: string): Promise<{ texto: string; transferencia_id?: string; movimiento_hash?: string } | null> {
+async function yaRegistrado(
+  repo: Repo,
+  correo: CorreoBanco,
+  fecha: string,
+): Promise<{ texto: string; transferencia_id?: string; movimiento_hash?: string; sugerencia?: boolean } | null> {
   const mismo = (monto: number) => Math.abs(monto - correo.monto) < 0.01;
   if (correo.propio || correo.clase === "pago_tarjeta") {
     const t = (await repo.transferencias(100)).find((x) => mismo(x.monto) && cercaDeFecha(x.fecha, fecha) && (correo.clase !== "pago_tarjeta" || x.destino_id === correo.cuenta_id));
@@ -279,21 +313,39 @@ async function yaRegistrado(repo: Repo, correo: CorreoBanco, fecha: string): Pro
   const candidatos = (await repo.movimientos({ desde: sumarDias(fecha, -2), hasta: sumarDias(fecha, 2) })).filter(
     (x) => x.tipo === tipo && mismo(x.monto) && anotadoPorTi(x) && !usados.has(x.hash_unico),
   );
-  // Solo cuenta como el mismo si es de la misma cuenta: $80 en efectivo y $80 con la Nu son dos compras distintas (S13)
+  // Solo puede ser el mismo si es de la misma cuenta: $80 en efectivo y $80 con la Nu son dos compras distintas (S13).
+  // Aun así, mismo monto, fecha y cuenta no prueban que sea la misma compra (dos de $80 en la Nu pueden ser reales):
+  // solo se SUGIERE y tú decides; el aviso nunca se descarta solo (S13 general).
   const m = correo.cuenta_id ? candidatos.find((x) => x.account_id === correo.cuenta_id) : undefined;
-  return m ? { texto: `Ya lo tenías registrado: ${tipo} de ${dinero(correo.monto)} (${m.comercio ?? m.descripcion_original}).`, movimiento_hash: m.hash_unico } : null;
+  return m
+    ? {
+        sugerencia: true,
+        texto: `¿Es el mismo que ya anotaste: ${m.comercio ?? m.descripcion_original}, ${dinero(m.monto)} (${m.fecha})? Si es el mismo, toca «Ya lo tenía anotado». Si es otra compra, elige la cuenta y toca Registrar.`,
+        movimiento_hash: m.hash_unico,
+      }
+    : null;
 }
 
 // Solo se registra solo lo que es seguro: compras y bonificaciones de una tarjeta de crédito.
 // Lo demás (de qué cuenta salió el dinero, a dónde llegó) lo confirmas tú; la app solo sugiere.
-async function resolver(repo: Repo, correo: CorreoBanco): Promise<"aplicado" | "pendiente" | "duplicado"> {
+async function resolver(repo: Repo, correo: CorreoBanco, verificado: boolean): Promise<"aplicado" | "pendiente" | "duplicado"> {
   const cuentas = await repo.cuentas();
   const fecha = fechaDe(correo.recibido);
   // Primero: ¿ya lo anotaste tú? Así una compra que registraste con foto o a mano no se duplica al llegar el correo
   const ya = await yaRegistrado(repo, correo, fecha);
+  if (ya?.sugerencia) {
+    // Se guarda cuál es el que se parece, para el botón «Ya lo tenía anotado»; el aviso sigue pendiente
+    await repo.editarCorreo(correo.id, { resultado: ya.texto, movimiento_hash: ya.movimiento_hash ?? null });
+    return "pendiente";
+  }
   if (ya) {
     await repo.editarCorreo(correo.id, { estado: "duplicado", resultado: ya.texto, transferencia_id: ya.transferencia_id ?? null, movimiento_hash: ya.movimiento_hash ?? null });
     return "duplicado";
+  }
+  // Sin prueba de que el correo viene del banco, nada se registra solo: queda pendiente (S12)
+  if (!verificado) {
+    await repo.editarCorreo(correo.id, { resultado: `No pude comprobar que este correo venga de ${correo.banco}; revísalo. ${preguntaDe(correo, cuentas)}` });
+    return "pendiente";
   }
   const tarjeta = cuentas.find((c) => c.id === correo.cuenta_id && c.tipo === "credito");
   if (tarjeta && (correo.clase === "compra" || (correo.clase === "entrada" && !correo.propio))) {
@@ -327,7 +379,7 @@ export async function procesarCorreos(repo: Repo, correos: CorreoEntrante[]): Pr
       transferencia_id: null,
       movimiento_hash: null,
     });
-    const estado = await resolver(repo, (await repo.correo(id))!);
+    const estado = await resolver(repo, (await repo.correo(id))!, procedenciaVerificada(c));
     if (estado === "aplicado") resumen.aplicados++;
     else if (estado === "duplicado") resumen.duplicados++;
   }
@@ -354,7 +406,7 @@ export async function confirmarCorreo(repo: Repo, id: string, d: Confirmacion): 
     if (!r) throw new Error("Elige dos cuentas distintas.");
     // La otra mitad de la transferencia (si llegó) también queda lista
     const pareja = (await repo.correos({ estado: "pendiente" })).find((x) => complementa(correo, x));
-    await repo.editarCorreo(correo.id, { cuenta_id: correo.clase === "pago_tarjeta" ? correo.cuenta_id : d.cuenta_id });
+    await repo.editarCorreo(correo.id, { cuenta_id: correo.clase === "pago_tarjeta" ? correo.cuenta_id : d.cuenta_id, movimiento_hash: null });
     for (const x of pareja ? [correo, pareja] : [correo]) await repo.editarCorreo(x.id, { estado: r.duplicada ? "duplicado" : "aplicado", resultado: r.texto, transferencia_id: r.id });
     return r.texto;
   }
@@ -377,6 +429,15 @@ export async function confirmarCorreo(repo: Repo, id: string, d: Confirmacion): 
   if (!r) throw new Error("No encontré esa cuenta.");
   await repo.editarCorreo(correo.id, { estado: "aplicado", cuenta_id: d.cuenta_id, resultado: r.texto, movimiento_hash: r.hash });
   return r.texto;
+}
+
+// «Ya lo tenía anotado»: el aviso es el mismo movimiento que ya registraste (no mueve dinero; se puede deshacer)
+export async function esElMismoCorreo(repo: Repo, id: string): Promise<string> {
+  const correo = await repo.correo(id);
+  if (!correo || correo.estado !== "pendiente" || !correo.movimiento_hash) throw new Error("Ese aviso ya no está pendiente.");
+  const texto = `Era el mismo que ya tenías anotado (${dinero(correo.monto)}).`;
+  await repo.editarCorreo(id, { estado: "duplicado", resultado: texto });
+  return texto;
 }
 
 export async function ignorarCorreo(repo: Repo, id: string) {

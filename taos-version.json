@@ -4,9 +4,9 @@
   "novedades": [
     "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",
     "TAOS funciona 100% con reglas gratis: se quitó la opción de IA de pago.",
-    "Avisos del banco: solo se toman como compra los correos que vienen del dominio real del banco.",
-    "Una compra del correo ya no se confunde con otra del mismo monto en una cuenta distinta.",
-    "Sin internet: si se cierra tu sesión, las pantallas guardadas en el celular se borran (y no se muestran las de más de 7 días).",
-    "Detalles de pantalla: textos más claros, cifras con centavos, botones que dicen lo que hacen y gráficas más fáciles de leer."
+    "Avisos del banco: solo se reconocen los dominios exactos de cada banco, y un aviso se registra solo cuando Gmail confirma la firma del banco; si no, queda para que lo revises (vuelve a instalar el script de Gmail en Ajustes › Avisos del banco).",
+    "Si un aviso se parece a algo que ya anotaste, la app te pregunta si es el mismo (botón «Ya lo tenía anotado») en lugar de descartarlo sola.",
+    "Detalles de pantalla: textos más claros, cifras con centavos, botones que dicen lo que hacen y gráficas más fáciles de leer.",
+    "Sin internet: por seguridad el celular ya no guarda pantallas con tus saldos; sin señal ves una pantalla neutra donde puedes anotar un gasto, que se manda solo al volver la conexión."
   ]
 }

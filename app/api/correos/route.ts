@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const correos = (cuerpo?.correos ?? [])
     .slice(0, 100)
     .filter((c): c is CorreoEntrante => typeof c?.id === "string" && typeof c.de === "string" && typeof c.fecha === "string")
-    .map((c) => ({ id: c.id.slice(0, 100), de: c.de.slice(0, 200), asunto: String(c.asunto ?? "").slice(0, 300), fecha: c.fecha, texto: String(c.texto ?? "").slice(0, 8000) }))
+    .map((c) => ({ id: c.id.slice(0, 100), de: c.de.slice(0, 200), asunto: String(c.asunto ?? "").slice(0, 300), fecha: c.fecha, texto: String(c.texto ?? "").slice(0, 8000), auth: String(c.auth ?? "").slice(0, 2000) }))
     .filter((c) => !Number.isNaN(Date.parse(c.fecha)));
   try {
     const repo = await repoDelDueno();

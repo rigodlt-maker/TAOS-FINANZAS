@@ -13,8 +13,10 @@ export function RegistrarSW() {
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
   }, []);
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !ENTRADAS.some((e) => ruta?.startsWith(e))) return;
-    navigator.serviceWorker.ready.then((r) => r.active?.postMessage({ tipo: "taos-sin-sesion" })).catch(() => {});
+    if (!("serviceWorker" in navigator) || !ruta) return;
+    // Fuera de la entrada solo se llega con sesión (proxy.ts manda a /login si no hay): ahí los avisos vuelven a guardarse
+    const tipo = ENTRADAS.some((e) => ruta.startsWith(e)) ? "taos-sin-sesion" : "taos-con-sesion";
+    navigator.serviceWorker.ready.then((r) => r.active?.postMessage({ tipo })).catch(() => {});
   }, [ruta]);
   return null;
 }

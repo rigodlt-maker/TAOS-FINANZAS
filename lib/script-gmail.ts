@@ -30,6 +30,19 @@ function instalar() {
   Logger.log("¡Listo! Desde ahora reviso los correos de tu banco cada 10 minutos.");
 }
 
+// La revisión de Gmail es la cabecera Authentication-Results de MÁS ARRIBA (Gmail la pone al recibir el correo).
+// Una que venga más abajo o dentro del mensaje la pudo escribir cualquiera, por eso no se usa.
+function autenticacionDeGmail(raw) {
+  const fin = raw.search(/\\r?\\n\\r?\\n/);
+  const cabeceras = (fin < 0 ? raw : raw.slice(0, fin)).replace(/\\r?\\n[ \\t]+/g, " ").split(/\\r?\\n/);
+  for (const linea of cabeceras) {
+    const m = /^authentication-results:\\s*(.*)$/i.exec(linea);
+    if (m) return m[1].trim();
+  }
+  return "";
+}
+// fin autenticacionDeGmail
+
 function revisarCorreos() {
   const desde = Number(PropertiesService.getScriptProperties().getProperty("desde") || Date.now());
   const correos = [];
@@ -37,7 +50,7 @@ function revisarCorreos() {
     hilo.getMessages().forEach((m) => {
       if (m.getDate().getTime() < desde) return;
       // "auth": la revisión que hizo Gmail al recibirlo (firma del banco). Sin ella el aviso queda para que lo confirmes.
-      correos.push({ id: m.getId(), de: m.getFrom(), asunto: m.getSubject(), fecha: m.getDate().toISOString(), texto: m.getPlainBody().slice(0, 8000), auth: String(m.getHeader("Authentication-Results") || "").slice(0, 2000) });
+      correos.push({ id: m.getId(), de: m.getFrom(), asunto: m.getSubject(), fecha: m.getDate().toISOString(), texto: m.getPlainBody().slice(0, 8000), auth: autenticacionDeGmail(m.getRawContent()).slice(0, 2000) });
     }),
   );
   if (!correos.length) return;

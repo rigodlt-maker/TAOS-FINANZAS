@@ -43,13 +43,36 @@ self.addEventListener("fetch", (evento) => {
 });
 
 // Sin sesión (pantalla de entrada o cierre de sesión): se borra lo que pudiera tener algo tuyo en este celular
-// (la bandeja de avisos de la campana) y cualquier caché vieja con pantallas
+// (la bandeja de avisos de la campana, las notificaciones que siguen a la vista) y cualquier caché vieja con pantallas.
+// Además queda anotado "sin sesión": mientras siga así, un aviso que llegue NO se guarda en la bandeja y se muestra
+// sin su contenido ("Tienes un aviso nuevo"), para que nadie lo lea sin entrar (S15-P). Al volver a entrar se quita.
+// Lo que anotaste sin internet (cola de gastos) NO se borra aquí: se manda cuando vuelvas a entrar con tu sesión.
+const ESTADO = "estado-sesion";
+async function anotarSesion(dentro) {
+  try {
+    const c = await caches.open(ESTADO);
+    await c.put("/__sesion", new Response(dentro ? "dentro" : "fuera"));
+  } catch {}
+}
+async function sinSesion() {
+  try {
+    const r = await (await caches.open(ESTADO)).match("/__sesion");
+    return r ? (await r.text()) === "fuera" : false;
+  } catch {
+    return true; // si no se puede saber, se trata como sin sesión (lo más seguro)
+  }
+}
 async function limpiarSinSesion() {
+  await anotarSesion(false);
   for (const k of await caches.keys()) if (k === BANDEJA || (k.startsWith("taos-") && k !== CACHE)) await caches.delete(k);
+  try {
+    for (const n of await self.registration.getNotifications()) n.close();
+  } catch {}
   for (const v of await self.clients.matchAll({ type: "window" })) v.postMessage({ tipo: "taos-aviso" });
 }
 self.addEventListener("message", (evento) => {
   if (evento.data && evento.data.tipo === "taos-sin-sesion") evento.waitUntil(limpiarSinSesion());
+  if (evento.data && evento.data.tipo === "taos-con-sesion") evento.waitUntil(anotarSesion(true));
 });
 
 // Bandeja de avisos (la campana 🔔 de la app): se guardan los últimos 30 en este celular, sin servidor
@@ -73,15 +96,19 @@ self.addEventListener("push", (evento) => {
   } catch {
     aviso = { cuerpo: evento.data ? evento.data.text() : "" };
   }
-  evento.waitUntil(guardarAviso(aviso));
   evento.waitUntil(
-    self.registration.showNotification(aviso.titulo || "Administrador Tao", {
-      body: aviso.cuerpo || "",
-      icon: "/icono-192.png",
-      badge: "/icono-192.png",
-      tag: aviso.etiqueta || undefined,
-      renotify: !!aviso.etiqueta,
-      data: { url: aviso.url || "/" },
+    sinSesion().then(async (fuera) => {
+      // Sin sesión: aviso genérico, sin guardarlo ni mostrar de qué se trata (S15-P)
+      if (fuera) return self.registration.showNotification("Administrador Tao", { body: "Tienes un aviso nuevo. Entra a tu app para verlo.", icon: "/icono-192.png", badge: "/icono-192.png", tag: "taos-sin-sesion", data: { url: "/" } });
+      await guardarAviso(aviso);
+      return self.registration.showNotification(aviso.titulo || "Administrador Tao", {
+        body: aviso.cuerpo || "",
+        icon: "/icono-192.png",
+        badge: "/icono-192.png",
+        tag: aviso.etiqueta || undefined,
+        renotify: !!aviso.etiqueta,
+        data: { url: aviso.url || "/" },
+      });
     }),
   );
 });

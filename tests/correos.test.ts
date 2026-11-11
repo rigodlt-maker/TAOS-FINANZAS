@@ -277,3 +277,57 @@ test("S13 general: «Ya lo tenía anotado» lo marca como el mismo sin mover din
   assert.equal((await repo.movimientos()).filter((m) => m.monto === 80).length, 1);
   assert.equal((await repo.cuentas()).find((c) => c.id === nu.id)!.saldo_actual, antes);
 });
+
+test("S12-A: varias direcciones en From, en cualquier orden y forma, no se aceptan", () => {
+  for (const de of [
+    "a@otro.example, Nu <b@nu.com.mx>",
+    "Nu <b@nu.com.mx>, a@otro.example",
+    "a@otro.example; Nu <b@nu.com.mx>",
+    "a@otro.example Nu <b@nu.com.mx>",
+    "\"a@otro.example\" <b@nu.com.mx>",
+    "Nu <b@nu.com.mx> a@otro.example",
+    "Nu (a@otro.example) <b@nu.com.mx",
+    "Nu <b@nu.com.mx",
+  ]) assert.equal(hostRemitente(de), null, de);
+  // Lo normal sigue funcionando (nombre con comillas, con coma dentro de las comillas, con comentario)
+  assert.equal(hostRemitente("\"Nu, México\" <nu@nu.com.mx>"), "nu.com.mx");
+  assert.equal(hostRemitente("Nu México <nu@nu.com.mx>"), "nu.com.mx");
+  assert.equal(hostRemitente("nu@nu.com.mx (Nu México)"), "nu.com.mx");
+  assert.equal(hostRemitente("nu@nu.com.mx"), "nu.com.mx");
+});
+
+test("S12-B: lo que va dentro de un comentario de Authentication-Results nunca cuenta", () => {
+  const compra = { id: "b", de: "nu@nu.com.mx", fecha: "2026-11-10", asunto: "Compra", texto: "Compra aprobada con tu tarjeta de crédito Nu por $80.00" };
+  for (const auth of [
+    "mx.google.com; dkim=fail (dkim=pass header.d=nu.com.mx); dmarc=fail header.from=nu.com.mx",
+    "mx.google.com; dkim=fail (comentario (anidado dkim=pass header.d=nu.com.mx)) header.d=nu.com.mx",
+    "mx.google.com; dkim=fail reason=\"dkim=pass header.d=nu.com.mx\"",
+    "mx.google.com; dkim=neutral header.d=nu.com.mx; dmarc=none header.from=nu.com.mx",
+    "(mx.google.com;) otro.example; dkim=pass header.d=nu.com.mx",
+    "mx.google.com.otro.example; dkim=pass header.d=nu.com.mx",
+    "mx.google.com; dkim=pass header.d=nu.com.mx.atacante.example",
+    "mx.google.com; dkim=fail header.d=nu.com.mx (sin cerrar",
+    "mx.google.com; spf=pass smtp.mailfrom=nu.com.mx",
+  ]) assert.equal(procedenciaVerificada({ ...compra, auth }), false, auth);
+  for (const auth of [
+    "mx.google.com; dkim=pass header.i=@nu.com.mx header.s=s1 header.b=abc; spf=pass smtp.mailfrom=nu.com.mx",
+    "mx.google.com;\r\n       dkim=pass (2048-bit key) header.d=nu.com.mx;\r\n       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=nu.com.mx",
+    "mx.google.com; dkim=fail header.d=otro.example; dmarc=pass (p=NONE) header.from=nu.com.mx",
+  ]) assert.equal(procedenciaVerificada({ ...compra, auth }), true, auth);
+});
+
+test("S12-B: el script de Gmail toma la cabecera de más arriba (la que puso Gmail), no una que venga dentro del correo", async () => {
+  const { scriptGmail } = await import("../lib/script-gmail");
+  const s = scriptGmail("https://ejemplo.vercel.app", "clave-de-prueba");
+  assert.match(s, /getRawContent\(\)/);
+  assert.match(s, /function autenticacionDeGmail/);
+  assert.doesNotMatch(s, /getHeader\("Authentication-Results"\)/);
+  // Ejecuta la función del script con un correo crudo de ejemplo
+  const cuerpo = s.slice(s.indexOf("function autenticacionDeGmail"), s.indexOf("// fin autenticacionDeGmail"));
+  const f = new Function(`${cuerpo}; return autenticacionDeGmail;`)() as (raw: string) => string;
+  const raw =
+    "Delivered-To: x@gmail.com\r\nAuthentication-Results: mx.google.com;\r\n       dkim=fail header.d=nu.com.mx\r\nFrom: nu@nu.com.mx\r\n" +
+    "Authentication-Results: mx.google.com; dkim=pass header.d=nu.com.mx\r\nSubject: Compra\r\n\r\nAuthentication-Results: mx.google.com; dkim=pass header.d=nu.com.mx\r\n";
+  assert.equal(f(raw), "mx.google.com; dkim=fail header.d=nu.com.mx");
+  assert.equal(f("From: a@b.c\r\n\r\nAuthentication-Results: mx.google.com; dkim=pass header.d=nu.com.mx"), "");
+});

@@ -79,16 +79,42 @@ function cuentaPorEntidad(entidad: string, cuentas: Cuenta[], excepto: string | 
   return candidatas.length === 1 ? candidatas[0] : null;
 }
 
-// Host completo del remitente (lo que va después de la @), sin el nombre visible. Debe haber UNA sola dirección válida:
-// con dos direcciones, o un host mal formado, no se escoge ninguna (null).
+// Quita los comentarios (entre paréntesis, pueden ir anidados) y respeta lo que va entre comillas, como dice RFC 5322.
+// Lo que estaba dentro de un comentario NUNCA cuenta como dato (S12-B).
+export function sinComentarios(v: string): string | null {
+  let fuera = "", nivel = 0, comillas = false;
+  for (let i = 0; i < v.length; i++) {
+    const ch = v[i];
+    if (ch === "\\" && (comillas || nivel > 0)) { if (!nivel) fuera += ch + (v[i + 1] ?? ""); i++; continue; }
+    if (nivel === 0 && ch === '"') { comillas = !comillas; fuera += ch; continue; }
+    if (!comillas && ch === "(") { nivel++; fuera += nivel === 1 ? " " : ""; continue; }
+    if (!comillas && ch === ")") { if (!nivel) return null; nivel--; continue; }
+    if (!nivel) fuera += ch;
+  }
+  return nivel || comillas ? null : fuera; // paréntesis o comillas sin cerrar: no se confía
+}
+
+// Host completo del remitente (lo que va después de la @), sin el nombre visible. Debe haber UNA sola dirección:
+// con dos direcciones (con o sin ángulos, en cualquier orden), una dirección escondida en el nombre visible
+// o un host mal formado, no se escoge ninguna (null) (S12-A).
 export function hostRemitente(de: string): string | null {
-  const dentro = [...de.matchAll(/<([^<>]*)>/g)].map((m) => m[1].trim());
+  const limpio = sinComentarios(de);
+  if (limpio === null) return null;
+  const citas = limpio.match(/"(?:[^"\\]|\\.)*"/g) ?? [];
+  if (citas.some((q) => /[@<>]/.test(q))) return null; // una dirección escondida en el nombre entre comillas
+  const sinComillas = limpio.replace(/"(?:[^"\\]|\\.)*"/g, '""');
+  if (/[,;]/.test(sinComillas.replace(/<[^<>]*>/g, ""))) return null; // lista de varios remitentes
+  const dentro = [...sinComillas.matchAll(/<([^<>]*)>/g)].map((m) => m[1].trim());
   let correo: string;
   if (dentro.length > 1) return null;
-  if (dentro.length === 1) correo = dentro[0];
-  else {
-    const sueltas = de.match(/[^\s<>",;]+@[^\s<>",;]+/g) ?? [];
-    if (sueltas.length !== 1) return null;
+  if (dentro.length === 1) {
+    const fueraDe = sinComillas.replace(/<[^<>]*>/, "");
+    if (fueraDe.includes("@") || /[<>]/.test(fueraDe)) return null; // otra dirección en el nombre visible
+    correo = dentro[0];
+  } else {
+    if (/[<>]/.test(sinComillas)) return null;
+    const sueltas = sinComillas.match(/[^\s<>",;]+@[^\s<>",;]+/g) ?? [];
+    if (sueltas.length !== 1 || (sinComillas.match(/@/g) ?? []).length !== 1) return null;
     correo = sueltas[0];
   }
   const partes = correo.toLowerCase().split("@");
@@ -96,6 +122,42 @@ export function hostRemitente(de: string): string | null {
   const host = partes[1];
   if (host.length > 253 || !/^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/.test(host)) return null;
   return host;
+}
+
+// Lee una cabecera Authentication-Results (RFC 8601): quién la puso y cada resultado con sus propiedades.
+// Sin comentarios, por partes separadas con ";" fuera de comillas. Si algo no se puede leer bien, null.
+export type ResultadoAuth = { metodo: string; resultado: string; props: Record<string, string> };
+export function leerAutenticacion(valor: string): { servidor: string; resultados: ResultadoAuth[] } | null {
+  const limpio = sinComentarios(valor);
+  if (limpio === null) return null;
+  const partes: string[] = [];
+  let actual = "", comillas = false;
+  for (let i = 0; i < limpio.length; i++) {
+    const ch = limpio[i];
+    if (ch === "\\" && comillas) { actual += ch + (limpio[i + 1] ?? ""); i++; continue; }
+    if (ch === '"') comillas = !comillas;
+    if (ch === ";" && !comillas) { partes.push(actual); actual = ""; continue; }
+    actual += ch;
+  }
+  partes.push(actual);
+  const servidor = (partes.shift() ?? "").trim().toLowerCase().split(/\s+/)[0];
+  if (!servidor) return null;
+  const resultados: ResultadoAuth[] = [];
+  for (const p of partes) {
+    const fichas = p.trim().match(/[^\s="]+\s*=\s*(?:"(?:[^"\\]|\\.)*"|[^\s"]+)|\S+/g) ?? [];
+    const primera = fichas[0];
+    if (!primera || primera.toLowerCase() === "none") continue;
+    const m = /^([a-z0-9-]+)\s*=\s*([a-z0-9-]+)$/i.exec(primera);
+    if (!m) return null; // el primer dato de cada parte debe ser metodo=resultado
+    const props: Record<string, string> = {};
+    for (const f of fichas.slice(1)) {
+      const kv = /^([a-z0-9.-]+)\s*=\s*(.*)$/i.exec(f);
+      if (!kv) continue;
+      props[kv[1].toLowerCase()] = kv[2].replace(/^"|"$/g, "").toLowerCase();
+    }
+    resultados.push({ metodo: m[1].toLowerCase(), resultado: m[2].toLowerCase(), props });
+  }
+  return { servidor, resultados };
 }
 
 // Igual al dominio permitido o subdominio suyo; nunca "contiene" (S12)
@@ -111,12 +173,14 @@ export function bancoDelRemitente(de: string) {
 // Sin esa prueba el aviso queda pendiente para que tú lo confirmes: nunca mueve tu saldo solo (S12).
 export function procedenciaVerificada(c: CorreoEntrante): boolean {
   const banco = bancoDelRemitente(c.de);
-  const a = (c.auth ?? "").toLowerCase();
-  if (!banco || !/^\s*mx\.google\.com\s*;/.test(a)) return false;
-  const delBanco = (d: string) => banco[1].some((p) => coincideDominio(d.replace(/^@/, "").replace(/[.;,\s]+$/, ""), p));
-  for (const m of a.matchAll(/\bdkim=pass\b[^;]*?\bheader\.[di]=@?([a-z0-9.-]+)/g)) if (delBanco(m[1])) return true;
-  for (const m of a.matchAll(/\bdmarc=pass\b[^;]*?\bheader\.from=([a-z0-9.-]+)/g)) if (delBanco(m[1])) return true;
-  return false;
+  const leida = leerAutenticacion(c.auth ?? "");
+  if (!banco || !leida || leida.servidor !== "mx.google.com") return false;
+  const delBanco = (d: string | undefined) => !!d && banco[1].some((p) => coincideDominio(d.replace(/^.*@/, ""), p));
+  return leida.resultados.some(
+    (r) =>
+      r.resultado === "pass" &&
+      ((r.metodo === "dkim" && (delBanco(r.props["header.d"]) || delBanco(r.props["header.i"]))) || (r.metodo === "dmarc" && delBanco(r.props["header.from"]))),
+  );
 }
 
 export function leerCorreo(c: CorreoEntrante, cuentas: Cuenta[]): Lectura | null {

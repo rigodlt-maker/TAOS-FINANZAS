@@ -4,13 +4,14 @@
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { capturaRapida, registrarFrecuente } from "@/lib/acciones";
-import { EVENTO_COLA, fijarDueno, leerCola, quitarDeCola } from "@/lib/cola";
+import { descartarApartado, EVENTO_COLA, fijarDueno, leerApartados, leerCola, quitarDeCola, recuperarApartado, type Apartado } from "@/lib/cola";
 
 // dueno = id de la sesión actual (lo pasa el servidor): solo se ven y se mandan los borradores de esa sesión (S15-R6)
 export function SinInternet({ dueno }: { dueno: string }) {
   if (typeof window !== "undefined") fijarDueno(dueno);
   const [esperando, setEsperando] = useState(0);
   const [enLinea, setEnLinea] = useState(true);
+  const [apartados, setApartados] = useState<Apartado[]>([]);
 
   useEffect(() => {
     fijarDueno(dueno);
@@ -18,6 +19,7 @@ export function SinInternet({ dueno }: { dueno: string }) {
     const actualizar = () => {
       setEsperando(leerCola().length);
       setEnLinea(navigator.onLine);
+      setApartados(leerApartados());
     };
     const enviar = async () => {
       actualizar();
@@ -48,8 +50,8 @@ export function SinInternet({ dueno }: { dueno: string }) {
     };
   }, [dueno]);
 
-  if (enLinea && !esperando) return null;
-  return (
+  const aviso =
+    enLinea && !esperando ? null : (
     <p className="mb-4 flex items-center gap-2 rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground" role="status">
       <WifiOff className="size-4 shrink-0" />
       {enLinea
@@ -58,5 +60,41 @@ export function SinInternet({ dueno }: { dueno: string }) {
           ? `Sin internet: ${esperando === 1 ? "1 gasto espera" : `${esperando} gastos esperan`} y se registran solos al volver la señal.`
           : "Sin internet: puedes anotar gastos en Agregar y se registran solos al volver la señal."}
     </p>
+    );
+  if (!aviso && !apartados.length) return null;
+  return (
+    <>
+      {aviso}
+      {apartados.length > 0 && <Apartados lista={apartados} />}
+    </>
+  );
+}
+
+// S15-R6 · Gastos anotados sin internet ANTES de que la cola tuviera dueño. No se mandan solos: tú eliges cada uno.
+const describir = (p: Apartado) =>
+  p.tipo === "frase" ? `«${p.frase}»` : `$${Number(p.datos.monto).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} en ${p.datos.comercio}`;
+function Apartados({ lista }: { lista: Apartado[] }) {
+  return (
+    <section className="mb-4 grid gap-3 rounded-2xl border border-primary/60 bg-card px-4 py-3 text-sm" aria-label="Gastos guardados sin internet">
+      <p>
+        <strong>{lista.length === 1 ? "Hay 1 gasto" : `Hay ${lista.length} gastos`} que se anotaron sin internet en este celular antes de la actualización.</strong> No se
+        registraron. Si son tuyos, regístralos; si no, descártalos.
+      </p>
+      <ul className="grid gap-2">
+        {lista.map((p) => (
+          <li key={p.id} className="grid gap-2 rounded-xl border px-3 py-2">
+            <span>{describir(p)}</span>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="min-h-12 flex-1 rounded-xl bg-primary px-3 font-medium text-primary-foreground" onClick={() => recuperarApartado(p.id)}>
+                Son míos: registrar
+              </button>
+              <button type="button" className="min-h-12 flex-1 rounded-xl border px-3" onClick={() => descartarApartado(p.id)}>
+                Descartar
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

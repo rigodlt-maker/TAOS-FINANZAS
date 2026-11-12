@@ -36,12 +36,58 @@ test("S15-R6: sin sesión conocida no se guarda nada y la cola se ve vacía", ()
   assert.equal(almacen.size, 0);
 });
 
-test("S15-R6: la cola vieja sin dueño se descarta y una lista copiada a otra clave no cuenta", () => {
+test("S15-R6 (ronda 3): la cola vieja sin dueño NO se borra: se aparta, no se manda sola y se recupera o descarta a mano", () => {
   almacen.clear();
-  almacen.set("taos-cola-sin-internet", JSON.stringify([{ id: "1", tipo: "frase", frase: "vieja", creado: "x" }]));
-  cola.fijarDueno("usuario-c");
+  const viejos = [
+    { id: "1", tipo: "frase", frase: "350 súper con débito", creado: "2026-11-10T10:00:00Z" },
+    { id: "2", tipo: "frecuente", datos: { comercio: "OXXO", monto: 80, account_id: "c1", category_id: null }, creado: "2026-11-10T11:00:00Z" },
+  ];
+  almacen.set("taos-cola-sin-internet", JSON.stringify(viejos));
+  cola.fijarDueno("usuario-c"); // la sonda de Codex: sembrar la cola vieja y fijar dueño
+  // Se apartó tal cual (no desapareció) y no entra a la cola que se manda sola
+  assert.deepEqual(JSON.parse(almacen.get(cola.APARTADA)!), viejos);
   assert.equal(almacen.has("taos-cola-sin-internet"), false);
   assert.deepEqual(cola.leerCola(), []);
+  assert.deepEqual(cola.leerApartados().map((p) => p.id), ["1", "2"]);
+  // Sin sesión no se ven ni se pueden tocar
+  cola.fijarDueno(null);
+  assert.deepEqual(cola.leerApartados(), []);
+  assert.equal(cola.recuperarApartado("1"), false);
+  assert.equal(cola.descartarApartado("2"), false);
+  assert.equal(JSON.parse(almacen.get(cola.APARTADA)!).length, 2);
+  // Con sesión: «Son míos: registrar» lo pasa a SU cola con su dueño; «Descartar» lo quita. Nada se pierde sin elegirlo
+  cola.fijarDueno("usuario-c");
+  assert.equal(cola.recuperarApartado("1"), true);
+  assert.deepEqual(cola.leerCola().map((p) => [p.tipo === "frase" ? p.frase : "", p.dueno]), [["350 súper con débito", "usuario-c"]]);
+  assert.deepEqual(cola.leerApartados().map((p) => p.id), ["2"]);
+  assert.equal(cola.descartarApartado("2"), true);
+  assert.deepEqual(cola.leerApartados(), []);
+  assert.equal(almacen.has(cola.APARTADA), false);
+  // Si llega otra cola vieja (p. ej. una pantalla Sin internet de antes, guardada en el celular), se suma a los apartados
+  almacen.set("taos-cola-sin-internet", JSON.stringify([{ id: "3", tipo: "frase", frase: "45 café", creado: "x" }]));
+  assert.deepEqual(cola.leerApartados().map((p) => p.id), ["3"]);
+});
+
+test("S15-R6 (ronda 3): si no se puede guardar la copia apartada, la cola vieja se queda donde estaba", () => {
+  almacen.clear();
+  almacen.set("taos-cola-sin-internet", JSON.stringify([{ id: "9", tipo: "frase", frase: "x", creado: "x" }]));
+  const ls = (globalThis as unknown as { localStorage: { setItem: (k: string, v: string) => void } }).localStorage;
+  const original = ls.setItem;
+  ls.setItem = (k: string, v: string) => {
+    if (k === cola.APARTADA) throw new Error("lleno");
+    original(k, v);
+  };
+  try {
+    cola.fijarDueno("usuario-d");
+  } finally {
+    ls.setItem = original;
+  }
+  assert.ok(almacen.has("taos-cola-sin-internet"));
+});
+
+test("S15-R6: una lista copiada a otra clave no cuenta", () => {
+  almacen.clear();
+  cola.fijarDueno("usuario-c");
   almacen.set("taos-cola-sin-internet:usuario-c", JSON.stringify([{ id: "2", tipo: "frase", frase: "de A", creado: "x", dueno: "usuario-a" }]));
   assert.deepEqual(cola.leerCola(), []);
 });

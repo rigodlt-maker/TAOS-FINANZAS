@@ -4,7 +4,21 @@
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { capturaRapida, registrarFrecuente } from "@/lib/acciones";
-import { descartarApartado, EVENTO_COLA, fijarDueno, leerApartados, marcarRevisar, porEnviar, porRevisar, quitarDeCola, recuperarApartado, type Apartado, type PorEnviar } from "@/lib/cola";
+import {
+  descartarApartado,
+  enviarCola,
+  envioPausado,
+  EVENTO_COLA,
+  fijarDueno,
+  leerApartados,
+  porEnviar,
+  porRevisar,
+  quitarDeCola,
+  reanudarEnvio,
+  recuperarApartado,
+  type Apartado,
+  type PorEnviar,
+} from "@/lib/cola";
 
 // dueno = id de la sesión actual (lo pasa el servidor): solo se ven y se mandan los borradores de esa sesión (S15-R6)
 export function SinInternet({ dueno }: { dueno: string }) {
@@ -13,6 +27,8 @@ export function SinInternet({ dueno }: { dueno: string }) {
   const [enLinea, setEnLinea] = useState(true);
   const [apartados, setApartados] = useState<Apartado[]>([]);
   const [revisar, setRevisar] = useState<PorEnviar[]>([]);
+  const [pausa, setPausa] = useState(false);
+  const [reintento, setReintento] = useState(0);
 
   useEffect(() => {
     fijarDueno(dueno);
@@ -22,24 +38,15 @@ export function SinInternet({ dueno }: { dueno: string }) {
       setEnLinea(navigator.onLine);
       setApartados(leerApartados());
       setRevisar(porRevisar());
+      setPausa(envioPausado());
     };
     const enviar = async () => {
       actualizar();
       if (enviando || !navigator.onLine) return;
       enviando = true;
-      for (const p of porEnviar()) {
-        try {
-          // Se manda con su dueño y su id fijo: el servidor revisa el dueño y, si ya lo tenía, no lo guarda otra vez
-          const r = p.tipo === "frase" ? await capturaRapida(p.frase, p.dueno, p.id) : await registrarFrecuente(p.datos, p.dueno, p.id);
-          // Registrado (o ya estaba): se quita. Si el celular no deja quitarlo, se volverá a mandar y el servidor lo
-          // reconocerá por su id: no se duplica.
-          if (r.ok) quitarDeCola(p.id);
-          // No se registró: se queda, marcado para que tú decidas (no se reintenta solo ni se borra en silencio)
-          else marcarRevisar(p.id, r.mensaje);
-        } catch {
-          break; // sigue sin señal: se intenta en la próxima
-        }
-      }
+      // Cada borrador va con su dueño y su id fijo (el servidor revisa el dueño y no guarda dos veces el mismo).
+      // Lo no registrado queda «por revisar»; si ni eso se puede guardar, se pausa todo (ver enviarCola en lib/cola.ts).
+      await enviarCola((p) => (p.tipo === "frase" ? capturaRapida(p.frase, p.dueno, p.id) : registrarFrecuente(p.datos, p.dueno, p.id)));
       enviando = false;
       actualizar();
     };
@@ -52,7 +59,7 @@ export function SinInternet({ dueno }: { dueno: string }) {
       window.removeEventListener("offline", actualizar);
       window.removeEventListener(EVENTO_COLA, actualizar);
     };
-  }, [dueno]);
+  }, [dueno, reintento]);
 
   const aviso =
     enLinea && !esperando ? null : (
@@ -65,9 +72,27 @@ export function SinInternet({ dueno }: { dueno: string }) {
           : "Sin internet: puedes anotar gastos en Agregar y se registran solos al volver la señal."}
     </p>
     );
-  if (!aviso && !apartados.length && !revisar.length) return null;
+  if (!aviso && !apartados.length && !revisar.length && !pausa) return null;
   return (
     <>
+      {pausa && (
+        <div role="alert" className="mb-4 grid gap-2 rounded-2xl border border-destructive/60 bg-card px-4 py-3 text-sm">
+          <p className="text-destructive">
+            <strong>Pausé el envío de lo que guardaste sin internet.</strong> El servidor no registró un gasto y este celular no me dejó anotarlo para que lo
+            revises (puede estar sin espacio). Nada se borró ni se volverá a mandar solo. Libera espacio y toca «Reintentar».
+          </p>
+          <button
+            type="button"
+            className="min-h-12 rounded-xl border px-3"
+            onClick={() => {
+              if (reanudarEnvio()) setReintento((n) => n + 1);
+              else setPausa(true);
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
       {aviso}
       {revisar.length > 0 && <PorRevisar lista={revisar} />}
       {apartados.length > 0 && <Apartados lista={apartados} />}

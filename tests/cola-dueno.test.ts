@@ -192,3 +192,80 @@ test("S15-R6 (ronda 5): lo que el servidor no registró queda «por revisar»: n
   assert.deepEqual(cola.porRevisar().map((x) => x.revisar), ["Es un movimiento entre tus cuentas"]);
   assert.equal(cola.leerCola().length, 1);
 });
+
+// Ronda 6 de Codex: el servidor rechaza un borrador y el celular NO deja guardar la marca «por revisar»
+test("S15-R6 (ronda 6): si no se puede guardar la marca «por revisar», el envío automático se pausa y el borrador se conserva", () => {
+  almacen.clear();
+  cola.fijarDueno("A");
+  cola.agregarACola({ tipo: "frase", frase: "pagué la tarjeta con débito 500" });
+  cola.agregarACola({ tipo: "frase", frase: "45 café" });
+  const [rechazado] = cola.leerCola();
+  let marcado = true;
+  fallarAlEscribir((k) => k === "taos-cola-sin-internet:A", () => (marcado = cola.marcarRevisar(rechazado.id, "Es un movimiento entre tus cuentas")));
+  assert.equal(marcado, false);
+  // Pausado: NADA se manda solo (ni el rechazado ni los demás); se ve por revisar con su motivo; el borrador sigue ahí
+  assert.equal(cola.envioPausado(), true);
+  assert.deepEqual(cola.porEnviar(), []);
+  assert.deepEqual(cola.porRevisar().map((p) => [p.id, p.revisar]), [[rechazado.id, "Es un movimiento entre tus cuentas"]]);
+  assert.equal(cola.leerCola().length, 2);
+  // «Reintentar» con el celular todavía lleno: sigue en pausa
+  let reanudo = true;
+  fallarAlEscribir((k) => k === "taos-cola-sin-internet:A", () => (reanudo = cola.reanudarEnvio()));
+  assert.equal(reanudo, false);
+  assert.deepEqual(cola.porEnviar(), []);
+  // Con espacio: la marca queda guardada y el envío sigue SOLO con los demás
+  assert.equal(cola.reanudarEnvio(), true);
+  assert.equal(cola.envioPausado(), false);
+  assert.equal(JSON.parse(almacen.get("taos-cola-sin-internet:A")!).find((p: { id: string }) => p.id === rechazado.id).revisar, "Es un movimiento entre tus cuentas");
+  assert.deepEqual(cola.porEnviar().map((p) => (p.tipo === "frase" ? p.frase : "")), ["45 café"]);
+});
+
+test("S15-R6 (ronda 6): la sonda de Codex con el envío real: servidor que rechaza + QuotaExceededError al marcar → 1 llamada y pausa", async () => {
+  almacen.clear();
+  cola.fijarDueno("A");
+  cola.agregarACola({ tipo: "frase", frase: "pagué la tarjeta con débito 500" });
+  const llamadas: string[] = [];
+  const servidorQueRechaza = async (p: { id: string }) => (llamadas.push(p.id), { ok: false, mensaje: "Confírmalo con Tao" });
+  // Primer evento «en línea»: el servidor lo rechaza y el celular no deja guardar la marca
+  let estado = "";
+  const ls = (globalThis as unknown as { localStorage: { setItem: (k: string, v: string) => void } }).localStorage;
+  const set = ls.setItem;
+  ls.setItem = (k, v) => {
+    if (k === "taos-cola-sin-internet:A") throw Object.assign(new Error("QuotaExceededError"), { name: "QuotaExceededError" });
+    set(k, v);
+  };
+  try {
+    estado = await cola.enviarCola(servidorQueRechaza);
+    // Segundo y tercer evento «en línea» con el celular todavía lleno: NO se vuelve a mandar
+    await cola.enviarCola(servidorQueRechaza);
+    await cola.enviarCola(servidorQueRechaza);
+  } finally {
+    ls.setItem = set;
+  }
+  assert.equal(estado, "pausado");
+  assert.equal(llamadas.length, 1); // antes: 2 (se reintentaba solo)
+  assert.equal(cola.porEnviar().length, 0); // elegibles para reintento automático: 0
+  assert.equal(cola.porRevisar().length, 1); // por revisar: 1 (en memoria, con su motivo)
+  assert.equal(cola.leerCola().length, 1); // conservado: 1
+  assert.equal(cola.envioPausado(), true);
+  const { readFileSync } = await import("node:fs");
+  const s = readFileSync("components/sin-internet.tsx", "utf8");
+  assert.match(s, /await enviarCola\(/); // la pantalla usa este mismo envío
+  assert.match(s, /Pausé el envío de lo que guardaste sin internet/);
+  // Con espacio, «Reintentar» guarda la marca; el rechazado ya no vuelve a salir solo
+  assert.equal(cola.reanudarEnvio(), true);
+  assert.equal(await cola.enviarCola(servidorQueRechaza), "listo");
+  assert.equal(llamadas.length, 1);
+});
+
+test("S15-R6 (ronda 6): el envío normal sigue igual: registra, quita y se detiene sin señal sin tocar nada", async () => {
+  almacen.clear();
+  cola.reanudarEnvio();
+  cola.fijarDueno("A");
+  cola.agregarACola({ tipo: "frase", frase: "45 café" });
+  cola.agregarACola({ tipo: "frase", frase: "80 oxxo" });
+  assert.equal(await cola.enviarCola(async () => { throw new TypeError("Failed to fetch"); }), "sin-senal");
+  assert.equal(cola.leerCola().length, 2);
+  assert.equal(await cola.enviarCola(async () => ({ ok: true, mensaje: "ok" })), "listo");
+  assert.equal(cola.leerCola().length, 0);
+});

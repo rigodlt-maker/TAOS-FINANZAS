@@ -153,14 +153,69 @@ export function agregarACola(p: SinId<PorEnviar>): boolean {
 }
 
 export function quitarDeCola(id: string): boolean {
-  return guardar(leerCola().filter((p) => p.id !== id));
+  const ok = guardar(leerCola().filter((p) => p.id !== id));
+  if (ok) marcasEnMemoria.delete(id);
+  return ok;
 }
 
 // Lo que se manda solo al volver la señal (lo marcado «por revisar» espera a que tú decidas)
-export const porEnviar = () => leerCola().filter((p) => !p.revisar);
-export const porRevisar = () => leerCola().filter((p) => !!p.revisar);
+// S15-R6 (ronda 6) · Si el celular no deja guardar la marca «por revisar», la marca se queda EN MEMORIA y el envío
+// automático se PAUSA por completo (para todos los borradores) hasta que tú toques «Reintentar»: así un borrador que el
+// servidor rechazó nunca se vuelve a mandar solo. El borrador no se toca: sigue en la cola, tal cual.
+// (Si además se recarga la página antes de poder guardar, el rechazado se manda una vez más, el servidor lo vuelve a
+// rechazar —o lo reconoce por su id— y se vuelve a pausar: no se duplica ni se pierde.)
+const marcasEnMemoria = new Map<string, string>();
+let pausado = false;
+export const envioPausado = () => pausado;
+
+export const porEnviar = () => (pausado ? [] : leerCola().filter((p) => !p.revisar && !marcasEnMemoria.has(p.id)));
+export const porRevisar = () =>
+  leerCola()
+    .map((p) => (marcasEnMemoria.has(p.id) && !p.revisar ? { ...p, revisar: marcasEnMemoria.get(p.id) } : p))
+    .filter((p) => !!p.revisar);
 export function marcarRevisar(id: string, motivo: string): boolean {
-  return guardar(leerCola().map((p) => (p.id === id ? { ...p, revisar: motivo || "Revísalo" } : p)));
+  const texto = motivo || "Revísalo";
+  const ok = guardar(leerCola().map((p) => (p.id === id ? { ...p, revisar: texto } : p)));
+  if (ok) {
+    marcasEnMemoria.delete(id);
+    return true;
+  }
+  marcasEnMemoria.set(id, texto);
+  pausado = true;
+  avisar();
+  return false;
+}
+// El envío automático (lo usa components/sin-internet.tsx). mandar = la acción del servidor con dueño e id fijo.
+// Registrado o ya estaba → se quita (si no se puede quitar, el servidor lo reconoce por su id: no se duplica).
+// No registrado → «por revisar»; si ni la marca se pudo guardar, se pausa TODO y se detiene aquí.
+// Sin señal (la petición truena) → se detiene y se intenta en la próxima.
+export async function enviarCola(mandar: (p: PorEnviar) => Promise<{ ok: boolean; mensaje: string }>): Promise<"listo" | "pausado" | "sin-senal"> {
+  for (const p of porEnviar()) {
+    let r: { ok: boolean; mensaje: string };
+    try {
+      r = await mandar(p);
+    } catch {
+      return "sin-senal";
+    }
+    if (r.ok) quitarDeCola(p.id);
+    else if (!marcarRevisar(p.id, r.mensaje)) return "pausado";
+  }
+  return "listo";
+}
+
+// «Reintentar»: intenta guardar las marcas pendientes. Solo si TODAS quedaron guardadas se reanuda el envío.
+export function reanudarEnvio(): boolean {
+  for (const [id, motivo] of [...marcasEnMemoria]) {
+    if (!leerCola().some((p) => p.id === id)) {
+      marcasEnMemoria.delete(id); // ya no está (se descartó)
+      continue;
+    }
+    if (guardar(leerCola().map((p) => (p.id === id ? { ...p, revisar: motivo } : p)))) marcasEnMemoria.delete(id);
+    else return false;
+  }
+  pausado = false;
+  avisar();
+  return true;
 }
 
 // ¿Falló por falta de internet? (el celular dice que no hay red, o la petición ni siquiera salió)

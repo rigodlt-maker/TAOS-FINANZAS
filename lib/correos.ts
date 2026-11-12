@@ -36,7 +36,7 @@ const BANCOS: [string, string[], RegExp][] = [
   ["Santander", ["santander.com.mx"], /\bsantander\b/],
   ["Banorte", ["banorte.com"], /\bbanorte\b/],
   ["Mercado Pago", ["mercadopago.com", "mercadopago.com.mx"], /\bmercado ?pago\b/],
-  ["Plata", ["plata.com.mx"], /\bplata\b/],
+  ["Plata", ["plata.com.mx", "bancoplata.mx"], /\bplata\b/],
   ["Stori", ["stori.mx"], /\bstori\b/],
 ];
 // Lo que busca el script de Gmail (los mismos dominios, para que no haya dos listas)

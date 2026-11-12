@@ -356,3 +356,26 @@ test("S12-B: el script de Gmail toma la cabecera de más arriba (la que puso Gma
   assert.equal(f(raw), "mx.google.com; dkim=fail header.d=nu.com.mx");
   assert.equal(f("From: a@b.c\r\n\r\nAuthentication-Results: mx.google.com; dkim=pass header.d=nu.com.mx"), "");
 });
+
+test("Plata avisa desde Plata@bancoplata.mx: se reconoce, el script lo busca y un dominio parecido no cuenta", async () => {
+  assert.equal(bancoDelRemitente("Plata <Plata@bancoplata.mx>")?.[0], "Plata");
+  assert.equal(bancoDelRemitente("avisos@plata.com.mx")?.[0], "Plata");
+  assert.equal(bancoDelRemitente("Plata <plata@bancoplata.mx.otro.example>"), null);
+  assert.equal(bancoDelRemitente("plata@falsobancoplata.mx"), null);
+  const { scriptGmail } = await import("../lib/script-gmail");
+  assert.match(scriptGmail("https://app.example/api/correos", "x"), /bancoplata\.mx/);
+  // Una compra (datos inventados) firmada por Gmail para bancoplata.mx se lee como compra con tarjeta Plata
+  const correo = {
+    id: "plata-1",
+    de: "Plata <Plata@bancoplata.mx>",
+    fecha: "2026-11-12",
+    asunto: "Compra aprobada",
+    texto: "Realizaste una compra con tu tarjeta de crédito Plata por $120.00 en COMERCIO PRUEBA",
+    auth: "mx.google.com; dkim=pass header.d=bancoplata.mx; dmarc=pass header.from=bancoplata.mx",
+  };
+  assert.equal(procedenciaVerificada(correo), true);
+  const cuentas = [{ id: "p", nombre: "Plata", tipo: "credito", saldo_actual: 0 } as Cuenta];
+  const l = leerCorreo(correo, cuentas);
+  assert.equal(l?.clase, "compra");
+  assert.equal(l?.monto, 120);
+});

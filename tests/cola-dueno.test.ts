@@ -181,3 +181,14 @@ test("S15-R6 (ronda 4): agregarACola y descartar dicen la verdad cuando el celul
   assert.deepEqual(cola.leerApartados().map((p) => p.id), ["legacy"]);
   assert.deepEqual(cola.leerCola(), []);
 });
+
+test("S15-R6 (ronda 5): lo que el servidor no registró queda «por revisar»: no se manda solo ni se borra", () => {
+  almacen.clear();
+  cola.fijarDueno("A");
+  cola.agregarACola({ tipo: "frase", frase: "pagué la tarjeta con débito 500" });
+  const [p] = cola.leerCola();
+  assert.equal(cola.marcarRevisar(p.id, "Es un movimiento entre tus cuentas"), true);
+  assert.deepEqual(cola.porEnviar(), []);
+  assert.deepEqual(cola.porRevisar().map((x) => x.revisar), ["Es un movimiento entre tus cuentas"]);
+  assert.equal(cola.leerCola().length, 1);
+});

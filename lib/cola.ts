@@ -6,9 +6,11 @@
 // primera; al volver a entrar la dueña, sus borradores siguen ahí. Sin dueño conocido no se guarda nada.
 // La cola vieja (sin dueño, de versiones anteriores) NO se borra ni se manda sola: se APARTA tal cual. La app avisa que
 // hay gastos apartados y la persona elige, uno por uno, «Son míos: registrar» (pasan a su cola) o «Descartar».
+// revisar = el servidor no lo registró solo (p. ej. es un movimiento entre cuentas, o ya no existe la cuenta): no se
+// vuelve a mandar solo; la pantalla te lo muestra para pasárselo a Tao o descartarlo. Nunca se borra sin que elijas.
 export type PorEnviar =
-  | { id: string; tipo: "frase"; frase: string; creado: string; dueno: string }
-  | { id: string; tipo: "frecuente"; datos: { comercio: string; monto: number; account_id: string; category_id: string | null }; creado: string; dueno: string };
+  | { id: string; tipo: "frase"; frase: string; creado: string; dueno: string; revisar?: string }
+  | { id: string; tipo: "frecuente"; datos: { comercio: string; monto: number; account_id: string; category_id: string | null }; creado: string; dueno: string; revisar?: string };
 
 const VIEJA = "taos-cola-sin-internet";
 export const APARTADA = "taos-cola-apartada";
@@ -100,7 +102,7 @@ export function recuperarApartado(id: string): boolean {
   const { id: _id, creado: _c, ...resto } = p;
   void _id;
   void _c;
-  const nuevoId = `apartado-${p.id}`;
+  const nuevoId = `apartado-${p.id.replace(/[^\w-]/g, "").slice(0, 60) || Date.now().toString(36)}`;
   const cola = leerCola();
   if (!cola.some((x) => x.id === nuevoId)) {
     if (!guardar([...cola, { ...resto, id: nuevoId, creado: new Date().toISOString(), dueno } as PorEnviar])) return false;
@@ -152,6 +154,13 @@ export function agregarACola(p: SinId<PorEnviar>): boolean {
 
 export function quitarDeCola(id: string): boolean {
   return guardar(leerCola().filter((p) => p.id !== id));
+}
+
+// Lo que se manda solo al volver la señal (lo marcado «por revisar» espera a que tú decidas)
+export const porEnviar = () => leerCola().filter((p) => !p.revisar);
+export const porRevisar = () => leerCola().filter((p) => !!p.revisar);
+export function marcarRevisar(id: string, motivo: string): boolean {
+  return guardar(leerCola().map((p) => (p.id === id ? { ...p, revisar: motivo || "Revísalo" } : p)));
 }
 
 // ¿Falló por falta de internet? (el celular dice que no hay red, o la petición ni siquiera salió)

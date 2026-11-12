@@ -165,10 +165,20 @@ const BORRADOR_AJENO: Resultado = { ok: false, mensaje: "Ese gasto se guardó co
 async function borradorAjeno(dueno?: string) {
   return dueno !== undefined && dueno !== (await duenoActual());
 }
+// S15-R6 (ronda 5) · Un borrador sin internet trae su id fijo. Con él, el movimiento se guarda con hash_unico
+// «borrador:<id>» y el índice único (user_id, hash_unico) de la base hace que, aunque llegue dos veces (o dos pestañas
+// a la vez), solo quede UNO por dueño: la base lo decide de forma atómica, no el código. Si ya estaba, se responde ok
+// con «repetido» y no se mueve el saldo otra vez.
+export type ResultadoBorrador = Resultado & { repetido?: boolean; revisar?: boolean };
+const BORRADOR_ID = /^[\w-]{1,80}$/;
+const BORRADOR_INVALIDO: ResultadoBorrador = { ok: false, revisar: true, mensaje: "No pude reconocer ese gasto guardado sin internet." };
+const hashDeBorrador = (id: string) => `borrador:${id}`;
+const YA_REGISTRADO = (texto: string): ResultadoBorrador => ({ ok: true, repetido: true, mensaje: `${texto} ya estaba registrado; no se volvió a guardar.` });
 
-export async function capturaRapida(frase: string, dueno?: string): Promise<Resultado> {
+export async function capturaRapida(frase: string, dueno?: string, borrador?: string): Promise<ResultadoBorrador> {
   try {
-    if (await borradorAjeno(dueno)) return BORRADOR_AJENO;
+    if (await borradorAjeno(dueno)) return { ...BORRADOR_AJENO, revisar: borrador !== undefined };
+    if (borrador !== undefined && !BORRADOR_ID.test(borrador)) return BORRADOR_INVALIDO;
     const repo = await obtenerRepo();
     const cuentas = await repo.cuentas();
     if (!cuentas.length) return { ok: false, mensaje: "Primero agrega una cuenta en Ajustes." };
@@ -176,6 +186,9 @@ export async function capturaRapida(frase: string, dueno?: string): Promise<Resu
 
     // "Pagué la tarjeta Palacio con Revolut": es un movimiento entre tus cuentas, no un gasto
     const transferencia = interpretarTransferencia(frase, cuentas, hoy);
+    // Un movimiento entre cuentas guardado sin internet no se hace solo: se te pide confirmarlo con Tao (S15-R6)
+    if (transferencia && borrador !== undefined)
+      return { ok: false, revisar: true, mensaje: `«${frase}» es un movimiento entre tus cuentas: confírmalo con Tao.` };
     if (transferencia) return await moverDinero(cuentas, transferencia, null);
 
     let interpretado = interpretarCaptura(frase, cuentas, hoy);
@@ -208,9 +221,10 @@ export async function capturaRapida(frase: string, dueno?: string): Promise<Resu
       import_id: null,
     };
     // La hora en el hash permite registrar dos veces lo mismo el mismo día (p. ej. dos cafés)
-    const hash = await hashUnico({ ...base, descripcion_original: `${frase} ${Date.now()}` });
+    const hash = borrador !== undefined ? hashDeBorrador(borrador) : await hashUnico({ ...base, descripcion_original: `${frase} ${Date.now()}` });
     const [listo] = await categorizar([{ ...base, hash_unico: hash }]);
-    await repo.insertarMovimientos([listo]);
+    const insertados = await repo.insertarMovimientos([listo]);
+    if (borrador !== undefined && !insertados) return YA_REGISTRADO(`«${frase}»`);
     const categoria = (await repo.categorias()).find((c) => c.id === listo.category_id);
     refrescar();
     return {
@@ -262,18 +276,24 @@ export async function guardarMovimiento(f: FormData): Promise<Resultado> {
 }
 
 // Gasto frecuente en un toque (ver lib/frecuentes.ts). Devuelve la huella para poder deshacerlo.
-export async function registrarFrecuente(d: { comercio: string; monto: number; account_id: string; category_id: string | null }, dueno?: string): Promise<Resultado & { hash?: string }> {
+export async function registrarFrecuente(
+  d: { comercio: string; monto: number; account_id: string; category_id: string | null },
+  dueno?: string,
+  borrador?: string,
+): Promise<ResultadoBorrador & { hash?: string }> {
   try {
-    if (await borradorAjeno(dueno)) return BORRADOR_AJENO;
+    if (await borradorAjeno(dueno)) return { ...BORRADOR_AJENO, revisar: borrador !== undefined };
+    if (borrador !== undefined && !BORRADOR_ID.test(borrador)) return BORRADOR_INVALIDO;
     const repo = await obtenerRepo();
     const [cuentas, categorias] = await Promise.all([repo.cuentas(), repo.categorias()]);
     const cuenta = cuentas.find((c) => c.id === d.account_id);
     const monto = redondear(Math.abs(Number(d.monto) || 0));
-    if (!cuenta || !monto || !d.comercio?.trim()) return { ok: false, mensaje: "No pude registrar ese gasto." };
+    if (!cuenta || !monto || !d.comercio?.trim()) return { ok: false, revisar: borrador !== undefined, mensaje: "No pude registrar ese gasto." };
     const category_id = categorias.some((c) => c.id === d.category_id) ? d.category_id : null;
     const datos = { fecha: hoyLocal(), monto, descripcion_original: d.comercio.trim(), comercio: d.comercio.trim(), tipo: "gasto" as const, account_id: cuenta.id, category_id };
-    const hash = await hashUnico({ ...datos, descripcion_original: `${datos.comercio} ${Date.now()}` });
-    await repo.insertarMovimientos([{ ...datos, requiere_revision: !category_id, es_recurrente: false, import_id: null, hash_unico: hash }]);
+    const hash = borrador !== undefined ? hashDeBorrador(borrador) : await hashUnico({ ...datos, descripcion_original: `${datos.comercio} ${Date.now()}` });
+    const insertados = await repo.insertarMovimientos([{ ...datos, requiere_revision: !category_id, es_recurrente: false, import_id: null, hash_unico: hash }]);
+    if (borrador !== undefined && !insertados) return { ...YA_REGISTRADO(`${dinero(monto)} en ${datos.comercio}`), hash };
     refrescar();
     return { ok: true, mensaje: `Guardado: ${dinero(monto)} en ${datos.comercio}, ${cuenta.nombre}.`, hash };
   } catch (e) {

@@ -119,3 +119,65 @@ test("S15-R6: sin-internet.html guarda con dueño en la clave de esa sesión y s
   assert.match(html, /localStorage\.getItem\("taos-cola-dueno"\)/);
   assert.doesNotMatch(html, /setItem\("taos-cola-sin-internet",/);
 });
+
+// Ronda 4 de Codex: escribir en la cola falla (QuotaExceededError) al recuperar un apartado
+function fallarAlEscribir(clave: (k: string) => boolean, f: () => void) {
+  const ls = (globalThis as unknown as { localStorage: { setItem: (k: string, v: string) => void; removeItem: (k: string) => void } }).localStorage;
+  const set = ls.setItem, rm = ls.removeItem;
+  const cuota = () => Object.assign(new Error("QuotaExceededError"), { name: "QuotaExceededError" });
+  ls.setItem = (k, v) => {
+    if (clave(k)) throw cuota();
+    set(k, v);
+  };
+  ls.removeItem = (k) => {
+    if (clave(k)) throw cuota();
+    rm(k);
+  };
+  try {
+    f();
+  } finally {
+    ls.setItem = set;
+    ls.removeItem = rm;
+  }
+}
+const sembrarApartado = (duenoId: string) => {
+  almacen.clear();
+  almacen.set("taos-cola-sin-internet", JSON.stringify([{ id: "legacy", tipo: "frase", frase: "350 súper con débito", creado: "2026-11-10T10:00:00Z" }]));
+  cola.fijarDueno(duenoId);
+  assert.deepEqual(cola.leerApartados().map((p) => p.id), ["legacy"]);
+};
+
+test("S15-R6 (ronda 4): si no se puede escribir en la cola, recuperar devuelve false y el gasto SIGUE apartado", () => {
+  sembrarApartado("A");
+  let r = true;
+  fallarAlEscribir((k) => k === "taos-cola-sin-internet:A", () => (r = cola.recuperarApartado("legacy")));
+  assert.equal(r, false);
+  assert.deepEqual(cola.leerApartados().map((p) => p.id), ["legacy"]);
+  assert.deepEqual(cola.leerCola(), []);
+  // Con espacio otra vez, se recupera normal y una sola vez
+  assert.equal(cola.recuperarApartado("legacy"), true);
+  assert.deepEqual(cola.leerApartados(), []);
+  assert.deepEqual(cola.leerCola().map((p) => (p.tipo === "frase" ? p.frase : "")), ["350 súper con débito"]);
+});
+
+test("S15-R6 (ronda 4): si se copió a la cola pero no se pudo quitar de apartados, se deshace la copia (no queda doble ni se pierde)", () => {
+  sembrarApartado("A");
+  let r = true;
+  fallarAlEscribir((k) => k === cola.APARTADA, () => (r = cola.recuperarApartado("legacy")));
+  assert.equal(r, false);
+  assert.deepEqual(cola.leerApartados().map((p) => p.id), ["legacy"]);
+  assert.deepEqual(cola.leerCola(), []);
+});
+
+test("S15-R6 (ronda 4): agregarACola y descartar dicen la verdad cuando el celular no deja escribir", () => {
+  sembrarApartado("A");
+  let agregado = true, descartado = true;
+  fallarAlEscribir((k) => k.startsWith("taos-cola"), () => {
+    agregado = cola.agregarACola({ tipo: "frase", frase: "80 oxxo" });
+    descartado = cola.descartarApartado("legacy");
+  });
+  assert.equal(agregado, false);
+  assert.equal(descartado, false);
+  assert.deepEqual(cola.leerApartados().map((p) => p.id), ["legacy"]);
+  assert.deepEqual(cola.leerCola(), []);
+});

@@ -72,14 +72,26 @@ export function leerApartados(): Apartado[] {
   apartarVieja();
   return leerLista(APARTADA).filter(esApartado);
 }
-function guardarApartados(lista: Apartado[]) {
+// Escribe (o borra) una clave y CONFIRMA leyéndola de vuelta. false = no quedó escrita (sin espacio, bloqueado…).
+function escribir(clave: string, lista: unknown[]): boolean {
   try {
-    if (lista.length) localStorage.setItem(APARTADA, JSON.stringify(lista));
-    else localStorage.removeItem(APARTADA);
-  } catch {}
-  avisar();
+    const texto = JSON.stringify(lista);
+    if (lista.length) localStorage.setItem(clave, texto);
+    else localStorage.removeItem(clave);
+    return lista.length ? localStorage.getItem(clave) === texto : localStorage.getItem(clave) === null;
+  } catch {
+    return false;
+  }
 }
-// «Son míos: registrar»: pasa a la cola de la sesión actual (se manda con su dueño, como cualquier otro)
+function guardarApartados(lista: Apartado[]): boolean {
+  const ok = escribir(APARTADA, lista);
+  avisar();
+  return ok;
+}
+// «Son míos: registrar»: pasa a la cola de la sesión actual (se manda con su dueño, como cualquier otro).
+// S15-R6 (ronda 4): el apartado solo se quita cuando su copia en la cola QUEDÓ ESCRITA. Si no se pudo escribir, sigue
+// apartado y se devuelve false (la pantalla lo dice). Si se escribió en la cola pero no se pudo quitar de apartados, se
+// deshace la copia para que no quede dos veces. En ningún caso desaparece.
 export function recuperarApartado(id: string): boolean {
   if (!dueno) return false;
   const lista = leerApartados();
@@ -88,16 +100,22 @@ export function recuperarApartado(id: string): boolean {
   const { id: _id, creado: _c, ...resto } = p;
   void _id;
   void _c;
-  if (!agregarACola(resto as SinId<PorEnviar>)) return false;
-  guardarApartados(lista.filter((x) => x.id !== id));
+  const nuevoId = `apartado-${p.id}`;
+  const cola = leerCola();
+  if (!cola.some((x) => x.id === nuevoId)) {
+    if (!guardar([...cola, { ...resto, id: nuevoId, creado: new Date().toISOString(), dueno } as PorEnviar])) return false;
+  }
+  if (!guardarApartados(lista.filter((x) => x.id !== id))) {
+    guardar(leerCola().filter((x) => x.id !== nuevoId));
+    return false;
+  }
   return true;
 }
 export function descartarApartado(id: string): boolean {
   if (!dueno) return false;
   const lista = leerApartados();
   if (!lista.some((x) => x.id === id)) return false;
-  guardarApartados(lista.filter((x) => x.id !== id));
-  return true;
+  return guardarApartados(lista.filter((x) => x.id !== id));
 }
 
 function avisar() {
@@ -117,25 +135,23 @@ export function leerCola(): PorEnviar[] {
   }
 }
 
-function guardar(lista: PorEnviar[]) {
-  if (!dueno) return;
-  try {
-    if (lista.length) localStorage.setItem(PREFIJO + dueno, JSON.stringify(lista));
-    else localStorage.removeItem(PREFIJO + dueno);
-  } catch {}
+// true solo si la cola quedó escrita de verdad (se confirma leyéndola de vuelta)
+function guardar(lista: PorEnviar[]): boolean {
+  if (!dueno) return false;
+  const ok = escribir(PREFIJO + dueno, lista);
   avisar();
+  return ok;
 }
 
 type SinId<T> = T extends unknown ? Omit<T, "id" | "creado" | "dueno"> : never;
-// Devuelve false si no se pudo guardar (no se sabe de quién es la sesión): quien llama avisa que no quedó guardado
+// Devuelve false si no quedó guardado (sin sesión conocida, o el celular no dejó escribir): quien llama lo avisa
 export function agregarACola(p: SinId<PorEnviar>): boolean {
   if (!dueno) return false;
-  guardar([...leerCola(), { ...p, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, creado: new Date().toISOString(), dueno } as PorEnviar]);
-  return true;
+  return guardar([...leerCola(), { ...p, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, creado: new Date().toISOString(), dueno } as PorEnviar]);
 }
 
-export function quitarDeCola(id: string) {
-  guardar(leerCola().filter((p) => p.id !== id));
+export function quitarDeCola(id: string): boolean {
+  return guardar(leerCola().filter((p) => p.id !== id));
 }
 
 // ¿Falló por falta de internet? (el celular dice que no hay red, o la petición ni siquiera salió)

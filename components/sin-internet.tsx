@@ -74,21 +74,29 @@ export function SinInternet({ dueno }: { dueno: string }) {
 const describir = (p: Apartado) =>
   p.tipo === "frase" ? `«${p.frase}»` : `$${Number(p.datos.monto).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} en ${p.datos.comercio}`;
 function Apartados({ lista }: { lista: Apartado[] }) {
+  const [fallo, setFallo] = useState<string | null>(null);
+  const intentar = (hecho: boolean, que: string) =>
+    setFallo(hecho ? null : `No se pudo ${que} en este celular (puede estar sin espacio). El gasto sigue aquí, apartado; intenta de nuevo.`);
   return (
     <section className="mb-4 grid gap-3 rounded-2xl border border-primary/60 bg-card px-4 py-3 text-sm" aria-label="Gastos guardados sin internet">
       <p>
         <strong>{lista.length === 1 ? "Hay 1 gasto" : `Hay ${lista.length} gastos`} que se anotaron sin internet en este celular antes de la actualización.</strong> No se
         registraron. Si son tuyos, regístralos; si no, descártalos.
       </p>
+      {fallo && (
+        <p role="alert" className="rounded-xl border border-destructive/60 px-3 py-2 text-destructive">
+          {fallo}
+        </p>
+      )}
       <ul className="grid gap-2">
         {lista.map((p) => (
           <li key={p.id} className="grid gap-2 rounded-xl border px-3 py-2">
             <span>{describir(p)}</span>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="min-h-12 flex-1 rounded-xl bg-primary px-3 font-medium text-primary-foreground" onClick={() => recuperarApartado(p.id)}>
+              <button type="button" className="min-h-12 flex-1 rounded-xl bg-primary px-3 font-medium text-primary-foreground" onClick={() => intentar(recuperarApartado(p.id), "guardarlo para registrar")}>
                 Son míos: registrar
               </button>
-              <button type="button" className="min-h-12 flex-1 rounded-xl border px-3" onClick={() => descartarApartado(p.id)}>
+              <button type="button" className="min-h-12 flex-1 rounded-xl border px-3" onClick={() => intentar(descartarApartado(p.id), "descartarlo")}>
                 Descartar
               </button>
             </div>

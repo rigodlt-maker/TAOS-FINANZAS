@@ -70,45 +70,81 @@ async function limpiarSinSesion() {
   } catch {}
   for (const v of await self.clients.matchAll({ type: "window" })) v.postMessage({ tipo: "taos-aviso" });
 }
+// S15-P (carrera): «vuelta» cambia EN EL MISMO INSTANTE en que llega el aviso de entrar o salir, antes de cualquier espera.
+// Un push que empezó antes guarda su vuelta y la revisa antes y después de cada paso: si cambió, no escribe la bandeja
+// (y si alcanzó a escribirla, la borra) ni deja a la vista su notificación con contenido.
+let vuelta = 0;
 self.addEventListener("message", (evento) => {
-  if (evento.data && evento.data.tipo === "taos-sin-sesion") evento.waitUntil(limpiarSinSesion());
-  if (evento.data && evento.data.tipo === "taos-con-sesion") evento.waitUntil(anotarSesion(true));
+  if (evento.data && evento.data.tipo === "taos-sin-sesion") {
+    vuelta++;
+    evento.waitUntil(limpiarSinSesion());
+  }
+  if (evento.data && evento.data.tipo === "taos-con-sesion") {
+    vuelta++;
+    evento.waitUntil(anotarSesion(true));
+  }
 });
 
 // Bandeja de avisos (la campana 🔔 de la app): se guardan los últimos 30 en este celular, sin servidor
 const BANDEJA = "bandeja-avisos";
-async function guardarAviso(aviso) {
+// vigente(): la sesión sigue siendo la misma que cuando llegó el aviso. Si deja de serlo, no se escribe nada y lo
+// que alcanzó a escribirse se borra (un cierre de sesión pudo borrar la bandeja justo antes de esta escritura).
+// Abrir una caché la crea: si la sesión cambió y quedó «fuera», se borra lo que se haya creado o escrito.
+async function soltarBandeja() {
+  if (await sinSesion()) await caches.delete(BANDEJA);
+  return false;
+}
+async function guardarAviso(aviso, vigente = () => true) {
   try {
+    if (!vigente()) return false;
     const c = await caches.open(BANDEJA);
+    if (!vigente()) return soltarBandeja();
     const r = await c.match("/__avisos");
     const lista = r ? await r.json() : [];
     lista.unshift({ titulo: aviso.titulo || "", cuerpo: aviso.cuerpo || "", url: aviso.url || "/", fecha: Date.now() });
+    if (!vigente()) return soltarBandeja();
     await c.put("/__avisos", new Response(JSON.stringify(lista.slice(0, 30)), { headers: { "Content-Type": "application/json" } }));
+    if (!vigente()) return soltarBandeja();
     for (const v of await self.clients.matchAll({ type: "window" })) v.postMessage({ tipo: "taos-aviso" });
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Llega un aviso del servidor: { titulo, cuerpo, url, etiqueta }
 self.addEventListener("push", (evento) => {
+  const mia = vuelta; // se toma al instante, antes de cualquier espera
+  const vigente = () => vuelta === mia;
   let aviso = {};
   try {
     aviso = evento.data ? evento.data.json() : {};
   } catch {
     aviso = { cuerpo: evento.data ? evento.data.text() : "" };
   }
+  const generico = () =>
+    self.registration.showNotification("Administrador Tao", { body: "Tienes un aviso nuevo. Entra a tu app para verlo.", icon: "/icono-192.png", badge: "/icono-192.png", tag: "taos-sin-sesion", data: { url: "/" } });
   evento.waitUntil(
     sinSesion().then(async (fuera) => {
-      // Sin sesión: aviso genérico, sin guardarlo ni mostrar de qué se trata (S15-P)
-      if (fuera) return self.registration.showNotification("Administrador Tao", { body: "Tienes un aviso nuevo. Entra a tu app para verlo.", icon: "/icono-192.png", badge: "/icono-192.png", tag: "taos-sin-sesion", data: { url: "/" } });
-      await guardarAviso(aviso);
-      return self.registration.showNotification(aviso.titulo || "Administrador Tao", {
+      // Sin sesión, o la sesión cambió mientras tanto: aviso genérico, sin guardarlo ni mostrar de qué se trata (S15-P)
+      if (fuera || !vigente()) return generico();
+      await guardarAviso(aviso, vigente);
+      if (!vigente()) return generico();
+      await self.registration.showNotification(aviso.titulo || "Administrador Tao", {
         body: aviso.cuerpo || "",
         icon: "/icono-192.png",
         badge: "/icono-192.png",
         tag: aviso.etiqueta || undefined,
         renotify: !!aviso.etiqueta,
-        data: { url: aviso.url || "/" },
+        data: { url: aviso.url || "/", vuelta: mia },
       });
+      // Si se cerró sesión mientras se mostraba, se quita: no queda nada privado a la vista
+      if (!vigente()) {
+        try {
+          for (const n of await self.registration.getNotifications()) if (n.data && n.data.vuelta === mia) n.close();
+        } catch {}
+        return generico();
+      }
     }),
   );
 });

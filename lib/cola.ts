@@ -1,31 +1,70 @@
 // Cola "sin internet": si no hay señal, el gasto se guarda en el celular y se manda solo cuando vuelve la conexión.
 // Solo para el navegador (usa localStorage). La usan la captura rápida y los gastos frecuentes.
+//
+// S15-R6 · Cada borrador tiene DUEÑO: se guarda bajo la clave de la sesión con la que se anotó (el id del usuario que da
+// el servidor) y solo esa sesión lo ve y lo manda. Si entra otra persona en el mismo celular, no ve ni manda lo de la
+// primera; al volver a entrar la dueña, sus borradores siguen ahí. Sin dueño conocido no se guarda nada.
+// La cola vieja (sin dueño, de versiones anteriores) se descarta: no hay forma segura de saber de quién era.
 export type PorEnviar =
-  | { id: string; tipo: "frase"; frase: string; creado: string }
-  | { id: string; tipo: "frecuente"; datos: { comercio: string; monto: number; account_id: string; category_id: string | null }; creado: string };
+  | { id: string; tipo: "frase"; frase: string; creado: string; dueno: string }
+  | { id: string; tipo: "frecuente"; datos: { comercio: string; monto: number; account_id: string; category_id: string | null }; creado: string; dueno: string };
 
-const CLAVE = "taos-cola-sin-internet";
+const VIEJA = "taos-cola-sin-internet";
+const PREFIJO = "taos-cola-sin-internet:";
 export const EVENTO_COLA = "taos-cola";
+const DUENO_VALIDO = /^[\w-]{1,64}$/;
+// La pantalla «Sin internet» (public/sin-internet.html) no tiene sesión: lee aquí de quién es la última sesión abierta.
+// Se borra al llegar a la entrada (cerrar sesión), así sin sesión esa pantalla no guarda nada.
+export const CLAVE_DUENO = "taos-cola-dueno";
+
+let dueno: string | null = null;
+
+// Lo llama la app con el id de la sesión actual (lo da el servidor). null = sin sesión: la cola queda vacía.
+export function fijarDueno(id: string | null) {
+  const nuevo = id && DUENO_VALIDO.test(id) ? id : null;
+  const cambio = nuevo !== dueno;
+  dueno = nuevo;
+  try {
+    localStorage.removeItem(VIEJA);
+    if (nuevo) localStorage.setItem(CLAVE_DUENO, nuevo);
+    else localStorage.removeItem(CLAVE_DUENO);
+  } catch {}
+  if (cambio) avisar();
+}
+export const duenoDeCola = () => dueno;
+
+function avisar() {
+  try {
+    window.dispatchEvent(new Event(EVENTO_COLA));
+  } catch {}
+}
 
 export function leerCola(): PorEnviar[] {
+  if (!dueno) return [];
   try {
-    const v = JSON.parse(localStorage.getItem(CLAVE) ?? "[]");
-    return Array.isArray(v) ? v : [];
+    const v = JSON.parse(localStorage.getItem(PREFIJO + dueno) ?? "[]");
+    // Doble candado: aunque alguien copie la lista a otra clave, solo cuenta lo que dice ser de esta sesión
+    return Array.isArray(v) ? v.filter((p) => p && p.dueno === dueno) : [];
   } catch {
     return [];
   }
 }
 
 function guardar(lista: PorEnviar[]) {
+  if (!dueno) return;
   try {
-    localStorage.setItem(CLAVE, JSON.stringify(lista));
+    if (lista.length) localStorage.setItem(PREFIJO + dueno, JSON.stringify(lista));
+    else localStorage.removeItem(PREFIJO + dueno);
   } catch {}
-  window.dispatchEvent(new Event(EVENTO_COLA));
+  avisar();
 }
 
-type SinId<T> = T extends unknown ? Omit<T, "id" | "creado"> : never;
-export function agregarACola(p: SinId<PorEnviar>) {
-  guardar([...leerCola(), { ...p, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, creado: new Date().toISOString() } as PorEnviar]);
+type SinId<T> = T extends unknown ? Omit<T, "id" | "creado" | "dueno"> : never;
+// Devuelve false si no se pudo guardar (no se sabe de quién es la sesión): quien llama avisa que no quedó guardado
+export function agregarACola(p: SinId<PorEnviar>): boolean {
+  if (!dueno) return false;
+  guardar([...leerCola(), { ...p, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, creado: new Date().toISOString(), dueno } as PorEnviar]);
+  return true;
 }
 
 export function quitarDeCola(id: string) {

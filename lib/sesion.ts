@@ -16,6 +16,15 @@ export const obtenerRepo = cache(async (): Promise<Repo> => {
   return repoSupabase(db, data.claims.sub);
 });
 
+// Id de la sesión actual, para marcar de quién es cada borrador guardado sin internet (S15-R6). Demo: "demo".
+export const duenoActual = cache(async (): Promise<string> => {
+  if (!supabaseConfigurado()) return "demo";
+  const db = await clienteServidor();
+  const { data } = await db.auth.getClaims();
+  if (!data?.claims?.sub) redirect("/login");
+  return data.claims.sub;
+});
+
 export const correoActual = cache(async (): Promise<string | null> => {
   if (!supabaseConfigurado()) return null;
   const db = await clienteServidor();

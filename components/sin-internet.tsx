@@ -4,13 +4,16 @@
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { capturaRapida, registrarFrecuente } from "@/lib/acciones";
-import { EVENTO_COLA, leerCola, quitarDeCola } from "@/lib/cola";
+import { EVENTO_COLA, fijarDueno, leerCola, quitarDeCola } from "@/lib/cola";
 
-export function SinInternet() {
+// dueno = id de la sesión actual (lo pasa el servidor): solo se ven y se mandan los borradores de esa sesión (S15-R6)
+export function SinInternet({ dueno }: { dueno: string }) {
+  if (typeof window !== "undefined") fijarDueno(dueno);
   const [esperando, setEsperando] = useState(0);
   const [enLinea, setEnLinea] = useState(true);
 
   useEffect(() => {
+    fijarDueno(dueno);
     let enviando = false;
     const actualizar = () => {
       setEsperando(leerCola().length);
@@ -22,7 +25,8 @@ export function SinInternet() {
       enviando = true;
       for (const p of leerCola()) {
         try {
-          const r = p.tipo === "frase" ? await capturaRapida(p.frase) : await registrarFrecuente(p.datos);
+          // El servidor también revisa que el borrador sea de la sesión que lo manda
+          const r = p.tipo === "frase" ? await capturaRapida(p.frase, p.dueno) : await registrarFrecuente(p.datos, p.dueno);
           // Si el servidor lo rechaza (p. ej. borraste esa cuenta) tampoco se reintenta para siempre
           if (r.ok || !navigator.onLine) quitarDeCola(p.id);
           if (!r.ok) console.error("No se pudo registrar lo guardado sin internet:", r.mensaje);
@@ -42,7 +46,7 @@ export function SinInternet() {
       window.removeEventListener("offline", actualizar);
       window.removeEventListener(EVENTO_COLA, actualizar);
     };
-  }, []);
+  }, [dueno]);
 
   if (enLinea && !esperando) return null;
   return (

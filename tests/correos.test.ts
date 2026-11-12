@@ -1,7 +1,7 @@
 // Avisos de banco leídos del correo: se registran solos, en pareja y sin duplicar
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bancoDelRemitente, confirmarCorreo, deshacerCorreo, esElMismoCorreo, hostRemitente, leerCorreo, procedenciaVerificada, procesarCorreos, type CorreoEntrante } from "../lib/correos";
+import { bancoDelRemitente, confirmarCorreo, deshacerCorreo, esElMismoCorreo, hostRemitente, leerCorreo, procedenciaVerificada, leerAutenticacion, procesarCorreos, type CorreoEntrante } from "../lib/correos";
 import { repoMemoria } from "../lib/datos/memoria";
 import type { Cuenta } from "../lib/tipos";
 
@@ -313,6 +313,31 @@ test("S12-B: lo que va dentro de un comentario de Authentication-Results nunca c
     "mx.google.com; dkim=pass header.i=@nu.com.mx header.s=s1 header.b=abc; spf=pass smtp.mailfrom=nu.com.mx",
     "mx.google.com;\r\n       dkim=pass (2048-bit key) header.d=nu.com.mx;\r\n       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=nu.com.mx",
     "mx.google.com; dkim=fail header.d=otro.example; dmarc=pass (p=NONE) header.from=nu.com.mx",
+  ]) assert.equal(procedenciaVerificada({ ...compra, auth }), true, auth);
+});
+
+test("S12-B (reverificación): cabeceras ambiguas se rechazan completas, no se interpretan", () => {
+  const compra = { id: "b", de: "nu@nu.com.mx", fecha: "2026-11-10", asunto: "Compra", texto: "Compra aprobada con tu tarjeta de crédito Nu por $80.00" };
+  for (const auth of [
+    "mx.google.com; dkim=pass header.d=evil.example header.d=nu.com.mx", // la contraejemplo de Codex
+    "mx.google.com; dkim=pass header.d=nu.com.mx header.d=evil.example",
+    "mx.google.com; dkim=pass header.d=nu.com.mx header.D=evil.example", // repetida con otra mayúscula
+    "mx.google.com; dmarc=pass header.from=evil.example header.from=nu.com.mx",
+    "mx.google.com basura; dkim=pass header.d=nu.com.mx", // la otra contraejemplo de Codex
+    "mx.google.com otro.example; dkim=pass header.d=nu.com.mx",
+    "mx.google.com 1 2; dkim=pass header.d=nu.com.mx",
+    "mx.google.com; dkim=pass basura header.d=nu.com.mx", // algo que no es nombre=valor
+    "mx.google.com; dkim=pass header.d= header.i=@nu.com.mx",
+    "mx.google.com; dkim=pass header.d=\"nu.com.mx\" header.d=nu.com.mx",
+  ]) {
+    assert.equal(procedenciaVerificada({ ...compra, auth }), false, auth);
+    assert.equal(leerAutenticacion(auth), null, auth);
+  }
+  // Lo válido sigue pasando: versión numérica del servidor y varias firmas (varios resultados dkim) en partes distintas
+  for (const auth of [
+    "mx.google.com 1; dkim=pass header.d=nu.com.mx",
+    "mx.google.com; dkim=pass header.d=otro.example; dkim=pass header.d=nu.com.mx",
+    "mx.google.com;\r\n       dkim=pass header.i=@nu.com.mx header.s=s1 header.b=Ab+/9xYz;\r\n       spf=pass (google.com: domain of nu@nu.com.mx designates 1.2.3.4 as permitted sender) smtp.mailfrom=nu@nu.com.mx;\r\n       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=nu.com.mx",
   ]) assert.equal(procedenciaVerificada({ ...compra, auth }), true, auth);
 });
 

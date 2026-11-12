@@ -11,7 +11,7 @@ import { Encabezado } from "@/components/taos/encabezado";
 import { Recorrido, type Paso } from "@/components/taos/recorrido";
 import { Campana } from "@/components/taos/campana";
 import { BotonTao } from "@/components/taos/tao";
-import { obtenerRepo } from "@/lib/sesion";
+import { duenoActual, obtenerRepo } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +52,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
           <strong className="text-foreground">Modo demostración:</strong> estás viendo datos de ejemplo.
         </p>
       )}
-      <SinInternet />
+      <SinInternet dueno={await duenoActual()} />
       {bd.pendientes.length > 0 && (
         <Link href="/configurar" className="mb-4 flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-primary/60 bg-card px-4 py-3 text-sm active:bg-muted">
           <span>🛠️ Tu app se actualizó: falta 1 minuto en tu base de datos. Toca aquí.</span>

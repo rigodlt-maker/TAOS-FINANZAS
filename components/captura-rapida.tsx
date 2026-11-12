@@ -22,7 +22,7 @@ export function CapturaRapida() {
         if (!frase) return;
         // Sin internet: se guarda en el celular y se registra solo al volver la señal
         const guardarSinInternet = () => {
-          agregarACola({ tipo: "frase", frase });
+          if (!agregarACola({ tipo: "frase", frase })) return setResultado({ ok: false, mensaje: "Sin internet y sin poder guardarlo en este celular. Intenta de nuevo con señal." });
           setResultado({ ok: true, mensaje: `Sin internet: guardé "${frase}". Se registra solo al volver la señal.` });
           if (ref.current) ref.current.value = "";
         };

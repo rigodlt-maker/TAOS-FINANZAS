@@ -15,7 +15,7 @@ export function GastosFrecuentes({ frecuentes, cuentas }: { frecuentes: Frecuent
   function tocar(f: Frecuente) {
     const datos = { comercio: f.comercio, monto: f.monto, account_id: f.account_id, category_id: f.category_id };
     const guardarSinInternet = () => {
-      agregarACola({ tipo: "frecuente", datos });
+      if (!agregarACola({ tipo: "frecuente", datos })) return setAviso({ texto: "Sin internet y sin poder guardarlo en este celular. Intenta de nuevo con señal.", error: true });
       setAviso({ texto: `Sin internet: guardé ${pesos(f.monto)} en ${f.comercio}. Se registra solo al volver la señal.` });
     };
     if (sinInternet()) return guardarSinInternet();

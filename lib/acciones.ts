@@ -15,7 +15,7 @@ import { extraerComercio, hashUnico, leerFecha, type MovimientoNuevo } from "./i
 import { analizarMeta } from "./metas";
 import { resumenPorCategoria } from "./presupuesto";
 import { detectarRecurrentes } from "./recurrentes";
-import { obtenerRepo } from "./sesion";
+import { duenoActual, obtenerRepo } from "./sesion";
 import { clienteServidor } from "./supabase/servidor";
 import { cuentaDelTicket, leerTicket, type Ticket } from "./ticket";
 import { dividirPago, siguienteFecha } from "./creditos";
@@ -160,8 +160,15 @@ async function marcarRecurrentes() {
 
 // ---------- Movimientos ----------
 
-export async function capturaRapida(frase: string): Promise<Resultado> {
+// Si viene de un borrador guardado sin internet, trae su dueño: si no es la sesión actual, no se registra (S15-R6)
+const BORRADOR_AJENO: Resultado = { ok: false, mensaje: "Ese gasto se guardó con otra sesión en este celular; no se registró." };
+async function borradorAjeno(dueno?: string) {
+  return dueno !== undefined && dueno !== (await duenoActual());
+}
+
+export async function capturaRapida(frase: string, dueno?: string): Promise<Resultado> {
   try {
+    if (await borradorAjeno(dueno)) return BORRADOR_AJENO;
     const repo = await obtenerRepo();
     const cuentas = await repo.cuentas();
     if (!cuentas.length) return { ok: false, mensaje: "Primero agrega una cuenta en Ajustes." };
@@ -255,8 +262,9 @@ export async function guardarMovimiento(f: FormData): Promise<Resultado> {
 }
 
 // Gasto frecuente en un toque (ver lib/frecuentes.ts). Devuelve la huella para poder deshacerlo.
-export async function registrarFrecuente(d: { comercio: string; monto: number; account_id: string; category_id: string | null }): Promise<Resultado & { hash?: string }> {
+export async function registrarFrecuente(d: { comercio: string; monto: number; account_id: string; category_id: string | null }, dueno?: string): Promise<Resultado & { hash?: string }> {
   try {
+    if (await borradorAjeno(dueno)) return BORRADOR_AJENO;
     const repo = await obtenerRepo();
     const [cuentas, categorias] = await Promise.all([repo.cuentas(), repo.categorias()]);
     const cuenta = cuentas.find((c) => c.id === d.account_id);

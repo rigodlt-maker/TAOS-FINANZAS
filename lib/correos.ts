@@ -126,6 +126,10 @@ export function hostRemitente(de: string): string | null {
 
 // Lee una cabecera Authentication-Results (RFC 8601): quién la puso y cada resultado con sus propiedades.
 // Sin comentarios, por partes separadas con ";" fuera de comillas. Si algo no se puede leer bien, null.
+// Estricta (S12-B, reverificación): lo ambiguo NO se interpreta, se rechaza toda la cabecera:
+//   · la primera parte es solo el servidor (authserv-id) y, si acaso, su número de versión: nada más («mx.google.com basura»);
+//   · cada resultado es metodo=resultado seguido SOLO de propiedades nombre=valor;
+//   · una propiedad repetida en el mismo resultado («header.d=evil.example header.d=nu.com.mx») invalida la cabecera.
 export type ResultadoAuth = { metodo: string; resultado: string; props: Record<string, string> };
 export function leerAutenticacion(valor: string): { servidor: string; resultados: ResultadoAuth[] } | null {
   const limpio = sinComentarios(valor);
@@ -140,8 +144,10 @@ export function leerAutenticacion(valor: string): { servidor: string; resultados
     actual += ch;
   }
   partes.push(actual);
-  const servidor = (partes.shift() ?? "").trim().toLowerCase().split(/\s+/)[0];
-  if (!servidor) return null;
+  const cabeza = (partes.shift() ?? "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const servidor = cabeza[0];
+  if (!servidor || cabeza.length > 2 || (cabeza.length === 2 && !/^\d{1,3}$/.test(cabeza[1]))) return null;
+  if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(servidor)) return null;
   const resultados: ResultadoAuth[] = [];
   for (const p of partes) {
     const fichas = p.trim().match(/[^\s="]+\s*=\s*(?:"(?:[^"\\]|\\.)*"|[^\s"]+)|\S+/g) ?? [];
@@ -152,8 +158,11 @@ export function leerAutenticacion(valor: string): { servidor: string; resultados
     const props: Record<string, string> = {};
     for (const f of fichas.slice(1)) {
       const kv = /^([a-z0-9.-]+)\s*=\s*(.*)$/i.exec(f);
-      if (!kv) continue;
-      props[kv[1].toLowerCase()] = kv[2].replace(/^"|"$/g, "").toLowerCase();
+      if (!kv || !kv[2]) return null; // algo que no es nombre=valor
+      if (!kv[2].startsWith('"') && kv[2].includes("=")) return null; // «header.d= header.i=…»: valor vacío pegado a otra propiedad
+      const nombre = kv[1].toLowerCase();
+      if (Object.hasOwn(props, nombre)) return null; // propiedad repetida: ambigua
+      props[nombre] = kv[2].replace(/^"|"$/g, "").toLowerCase();
     }
     resultados.push({ metodo: m[1].toLowerCase(), resultado: m[2].toLowerCase(), props });
   }

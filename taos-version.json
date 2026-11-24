@@ -1,12 +1,16 @@
 {
-  "version": "1.2.1",
-  "fecha": "2026-11-10",
+  "version": "1.3.0",
+  "fecha": "2026-11-24",
   "novedades": [
     "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",
+    "Avisos del banco: un aviso se registra solo cuando Gmail confirma que de verdad viene de tu banco; si no, queda para que tú lo revises. Vuelve a instalar el script de Gmail en Menú › Avisos del banco.",
+    "Avisos del banco: si un aviso se parece a algo que ya anotaste, la app te pregunta si es el mismo (botón «Ya lo tenía anotado») en vez de decidir sola.",
+    "Avisos del banco: ya se reconoce Plata.",
+    "Sin internet: tu celular ya no guarda pantallas con tus saldos. Puedes anotar un gasto y se manda solo cuando vuelve la señal.",
+    "Gastos anotados sin internet: cada uno queda a tu nombre (si alguien más entra en el mismo celular, no lo ve ni lo manda) y nunca se registra dos veces. Si no se pudo registrar, queda «por revisar» para que tú decidas: nada se borra solo.",
+    "Al cerrar sesión, ese celular deja de guardar tus avisos.",
     "TAOS funciona 100% con reglas gratis: se quitó la opción de IA de pago.",
-    "Avisos del banco: solo se reconocen los dominios exactos de cada banco, y un aviso se registra solo cuando Gmail confirma la firma del banco; si no, queda para que lo revises (vuelve a instalar el script de Gmail en Ajustes › Avisos del banco).",
-    "Si un aviso se parece a algo que ya anotaste, la app te pregunta si es el mismo (botón «Ya lo tenía anotado») en lugar de descartarlo sola.",
-    "Detalles de pantalla: textos más claros, cifras con centavos, botones que dicen lo que hacen y gráficas más fáciles de leer.",
-    "Sin internet: por seguridad el celular ya no guarda pantallas con tus saldos; sin señal ves una pantalla neutra donde puedes anotar un gasto, que se manda solo al volver la conexión."
+    "El botón de abajo a la derecha ahora es solo un ícono, para que nunca tape lo que estás viendo.",
+    "Detalles de pantalla: textos más claros, cifras con centavos, botones que dicen lo que hacen y gráficas más fáciles de leer."
   ]
 }

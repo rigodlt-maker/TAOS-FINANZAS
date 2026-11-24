@@ -5,7 +5,6 @@
 import type { LucideIcon } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type Seccion = { ruta: string; nombre: string; icono: LucideIcon; insignia?: number; tambien?: string[] };
@@ -62,19 +61,8 @@ function ContenidoSeccion({ s, on }: { s: Seccion; on: boolean }) {
   );
 }
 
-// ¿La pantalla está hasta arriba? Al desplazar, el botón flotante se reduce a solo su ícono para no tapar nada
-function usarArriba() {
-  const [arriba, setArriba] = useState(true);
-  useEffect(() => {
-    const revisar = () => setArriba(window.scrollY < 24);
-    revisar();
-    window.addEventListener("scroll", revisar, { passive: true });
-    return () => window.removeEventListener("scroll", revisar);
-  }, []);
-  return arriba;
-}
-
-// Acción principal de la app, abajo a la derecha, encima de la barra
+// Acción principal de la app, abajo a la derecha, encima de la barra. A1 (1.3.0): siempre solo el ícono, para no
+// tapar nada; el nombre va en aria-label y title (lo lee el lector de pantalla y sale al dejar el dedo o el ratón).
 export function BotonFlotante({
   href,
   etiqueta,
@@ -87,7 +75,6 @@ export function BotonFlotante({
   ocultarEn?: string[];
 }) {
   const actual = usePathname();
-  const arriba = usarArriba();
   if (actual === href || ocultarEn.some((r) => actual.startsWith(r))) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30">
@@ -96,13 +83,13 @@ export function BotonFlotante({
           href={href}
           data-recorrido="flotante"
           aria-label={etiqueta}
+          title={etiqueta}
           className={cn(
             "pointer-events-auto flex h-14 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground shadow-[0_8px_24px_rgba(212,175,55,0.35)] transition-all active:scale-95",
-            arriba ? "pr-6 pl-5" : "w-14",
+            "w-14",
           )}
         >
           <Icono className="size-6 shrink-0" strokeWidth={2.4} />
-          {arriba && etiqueta}
         </Link>
       </div>
     </div>

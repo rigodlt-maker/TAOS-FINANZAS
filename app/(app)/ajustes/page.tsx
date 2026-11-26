@@ -94,14 +94,14 @@ export default async function Ajustes() {
   return (
     <div className="grid gap-4">
       <Titulo>Ajustes</Titulo>
-      <Card>
+      <Card id="contrasena" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>Contraseña</CardTitle>
         </CardHeader>
         <CardDescription className="mb-3">Crea una contraseña para entrar sin esperar el enlace por correo, también desde la app instalada en tu celular.</CardDescription>
         <FormularioContrasena />
       </Card>
-      <Card>
+      <Card id="avisos" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>Notificaciones en el celular</CardTitle>
         </CardHeader>
@@ -118,7 +118,7 @@ export default async function Ajustes() {
         </span>
         <span className="text-primary">›</span>
       </a>
-      <Card>
+      <Card id="pantalla" className="scroll-mt-24">
         <CardTitle className="mb-1">Pantalla</CardTitle>
         <CardDescription className="mb-4">Tamaño de la letra en este celular.</CardDescription>
         <TamanoLetra />
@@ -172,7 +172,7 @@ export default async function Ajustes() {
         </div>
       </Card>
 
-      <Card>
+      <Card id="categorias" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>Categorías y presupuesto mensual</CardTitle>
           <span className="text-sm text-muted-foreground">Total {dinero(totalPresupuesto)}</span>

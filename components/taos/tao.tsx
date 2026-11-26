@@ -30,7 +30,13 @@ export function BotonTao({ titulo = "Pregúntale a Tao", children }: { titulo?: 
       }
     };
     window.addEventListener("keydown", tecla);
-    return () => window.removeEventListener("keydown", tecla);
+    // El buscador 🔍 (u otra pantalla) puede pedirle algo a Tao: se abre la hoja
+    const preguntar = () => setAbierto(true);
+    window.addEventListener("taos-preguntar", preguntar);
+    return () => {
+      window.removeEventListener("keydown", tecla);
+      window.removeEventListener("taos-preguntar", preguntar);
+    };
   }, []);
 
   useEffect(() => {

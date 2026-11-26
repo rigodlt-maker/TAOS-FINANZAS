@@ -1,7 +1,9 @@
 {
-  "version": "1.3.0",
-  "fecha": "2026-11-24",
+  "version": "1.3.1",
+  "fecha": "2026-11-26",
   "novedades": [
+    "Nueva lupa 🔍 arriba: escribe lo que quieres hacer («tarjeta», «categorías», «préstamos»…) y te lleva directo a esa pantalla. Si no es una pantalla, se lo pregunta a Tao.",
+    "Menú ordenado por grupos (Registrar, Ver mis gastos, Pagos y deudas, Ahorro, Configurar) y con su propia barra para buscar.",
     "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",
     "Avisos del banco: un aviso se registra solo cuando Gmail confirma que de verdad viene de tu banco; si no, queda para que tú lo revises. Vuelve a instalar el script de Gmail en Menú › Avisos del banco.",
     "Avisos del banco: si un aviso se parece a algo que ya anotaste, la app te pregunta si es el mismo (botón «Ya lo tenía anotado») en vez de decidir sola.",

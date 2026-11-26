@@ -6,7 +6,7 @@ export function Encabezado({ nombre, derecha }: { nombre: string; derecha?: Reac
     <header className="sticky top-0 z-20 -mx-4 mb-4 flex items-center justify-between gap-3 bg-background/95 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur">
       {/* El nombre se recorta con "…" si no cabe, para que los botones de la derecha nunca se salgan */}
       <Link href="/" className="flex min-h-11 min-w-0 items-center gap-2.5">
-        <img src="/icono-192.png" alt="" width={32} height={32} className="shrink-0 rounded-lg" />
+        <img src="/icono-192.png" alt="" width={32} height={32} className="hidden shrink-0 rounded-lg min-[400px]:block" />
         <span className="truncate text-lg font-semibold tracking-tight">{nombre}</span>
       </Link>
       {derecha && <div className="shrink-0">{derecha}</div>}

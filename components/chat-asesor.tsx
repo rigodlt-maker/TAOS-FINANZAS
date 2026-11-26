@@ -54,6 +54,16 @@ export function ChatAsesor({ enHoja = false }: { enHoja?: boolean }) {
     });
   }
 
+  // Lo que escribiste en el buscador 🔍 y no era una pantalla se le pregunta a Tao (solo la hoja, para no repetir)
+  const enviarRef = useRef(enviar);
+  enviarRef.current = enviar;
+  useEffect(() => {
+    if (!enHoja) return;
+    const preguntar = (e: Event) => enviarRef.current(String((e as CustomEvent).detail ?? ""));
+    window.addEventListener("taos-preguntar", preguntar);
+    return () => window.removeEventListener("taos-preguntar", preguntar);
+  }, [enHoja]);
+
   return (
     <div className="grid gap-4">
       {mensajes.length === 0 && (

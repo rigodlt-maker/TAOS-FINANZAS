@@ -5,6 +5,10 @@ import type { Repo } from "./datos/repo";
 import { repoSupabase } from "./datos/supabase";
 import { correoPermitido, supabaseConfigurado } from "./supabase/config";
 import { clienteServidor } from "./supabase/servidor";
+import { conCandado } from "./candado";
+import { esNube } from "./modo";
+import { suscripcionDe } from "./suscripcion-servidor";
+import { clienteAdmin } from "./supabase/admin";
 
 // Datos del usuario con sesión; en modo demostración usa la memoria con datos de ejemplo
 export const obtenerRepo = cache(async (): Promise<Repo> => {
@@ -13,7 +17,10 @@ export const obtenerRepo = cache(async (): Promise<Repo> => {
   const { data } = await db.auth.getClaims();
   if (!data?.claims?.sub) redirect("/login");
   if (!correoPermitido(data.claims.email as string | undefined)) redirect("/acceso-denegado");
-  return repoSupabase(db, data.claims.sub);
+  const repo = repoSupabase(db, data.claims.sub);
+  // Nube F4: sin suscripción vigente, solo lectura (la suscripción se lee con la llave secreta y TU user_id)
+  if (esNube()) return conCandado(repo, () => suscripcionDe(clienteAdmin(), data.claims.sub));
+  return repo;
 });
 
 // Id de la sesión actual, para marcar de quién es cada borrador guardado sin internet (S15-R6). Demo: "demo".

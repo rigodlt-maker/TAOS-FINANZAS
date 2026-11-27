@@ -243,7 +243,10 @@ t("Nube · catálogo: toda tabla con RLS; con user_id → «Solo el dueño» al 
       const publicos = (await dueno.query(`select count(*)::int n from information_schema.role_table_grants where table_schema = 'public' and table_name = $1 and grantee in ('anon', 'authenticated', 'PUBLIC')`, [tabla])).rows[0].n;
       const tieneUsuario = (await columnas(dueno, tabla)).some((x) => x.nombre === "user_id");
       const delDueno = politicas.filter((p) => (p.roles as string[]).includes("authenticated") && p.cmd === "ALL" && esDelDueno(p.qual) && esDelDueno(p.with_check));
-      if (tieneUsuario && publicos > 0 && delDueno.length === 0) problemas.push(`${tabla}: tiene user_id y permisos públicos, pero no la regla «Solo el dueño» completa`);
+      // F4: también vale «solo lectura del dueño» (p. ej. suscripciones): la persona solo puede LEER lo suyo y escribe solo el servidor
+      const permisos = (await dueno.query(`select distinct privilege_type p from information_schema.role_table_grants where table_schema = 'public' and table_name = $1 and grantee in ('anon', 'authenticated', 'PUBLIC')`, [tabla])).rows.map((r) => r.p as string);
+      const soloLectura = permisos.length > 0 && permisos.every((x) => x === "SELECT") && politicas.some((p) => (p.roles as string[]).includes("authenticated") && p.cmd === "SELECT" && esDelDueno(p.qual));
+      if (tieneUsuario && publicos > 0 && delDueno.length === 0 && !soloLectura) problemas.push(`${tabla}: tiene user_id y permisos públicos, pero no la regla «Solo el dueño» completa`);
       if (!tieneUsuario && publicos > 0 && politicas.length > 0) problemas.push(`${tabla}: sin user_id, con permisos públicos y reglas (revisar a mano)`);
     }
     assert.deepEqual(problemas, []);

@@ -4,7 +4,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const APP_DATOS = "Administrador Tao";
 // Tablas de esta app con datos de cada persona (todas tienen user_id y se borran en cascada con la cuenta)
-export const TABLAS_MIAS = ["accounts", "bank_emails", "categories", "categorization_rules", "debts", "goal_contributions", "imports", "loans", "push_subscriptions", "savings_goals", "scheduled_payments", "script_claves", "transactions", "transfers"] as const;
+export const TABLAS_MIAS = ["accounts", "bank_emails", "categories", "categorization_rules", "debts", "goal_contributions", "imports", "loans", "push_subscriptions", "savings_goals", "scheduled_payments", "script_claves", "suscripciones", "transactions", "transfers"] as const;
+// Columnas que no salen en la descarga (con el token de compra alguien podría consultar tu suscripción)
+const OCULTAS: Record<string, string[]> = { suscripciones: ["token_compra"] };
 // Carpetas de archivos de las apps TAOS (cada archivo vive en <user_id>/…). En TAOS Nube las 4 apps comparten servidor.
 export const CARPETAS_ARCHIVOS = ["estados-de-cuenta", "documentos"] as const;
 
@@ -17,7 +19,7 @@ export async function exportarMisDatos(db: SupabaseClient, usuario: string, tabl
     if (error) {
       if (noInstalada(error)) datos[t] = "no instalada";
       else throw new Error(`No se pudo leer ${t}: ${error.message}`);
-    } else datos[t] = data ?? [];
+    } else datos[t] = (data ?? []).map((fila: Record<string, unknown>) => Object.fromEntries(Object.entries(fila).filter(([c]) => !(OCULTAS[t] ?? []).includes(c))));
   }
   return { app: APP_DATOS, generado: new Date().toISOString(), usuario, datos };
 }

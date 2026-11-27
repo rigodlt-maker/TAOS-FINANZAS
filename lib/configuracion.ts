@@ -20,6 +20,7 @@ export const PRUEBAS_MIGRACIONES: Record<string, [string, string]> = {
   "0009_creditos.sql": ["debts", "id"],
   "0020_nube_duenos.sql": ["taos_migraciones", "nombre"],
   "0021_nube_claves.sql": ["script_claves", "app"],
+  "0022_nube_suscripciones.sql": ["suscripciones", "estado"],
 };
 
 export const faltaTabla = (e: { message: string; code?: string } | null) =>

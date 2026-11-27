@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { correoPermitido, SUPABASE_LLAVE_PUBLICA, SUPABASE_URL, supabaseConfigurado } from "./lib/supabase/config";
 
 // /api/correos se protege con su propia clave (la usa el script de Gmail, que no tiene sesión)
-const PUBLICAS = ["/login", "/crear-cuenta", "/auth", "/acceso-denegado", "/api/cron", "/api/correos"];
+const PUBLICAS = ["/login", "/crear-cuenta", "/auth", "/acceso-denegado", "/api/cron", "/api/correos", "/api/suscripcion/rtdn"];
 
 // Renueva la sesión de Supabase en cada visita y deja pasar solo al correo permitido
 export async function proxy(req: NextRequest) {

@@ -1,5 +1,8 @@
 import { headers } from "next/headers";
 import { Copiar } from "@/components/copiar";
+import { MiClaveScript } from "@/components/mi-clave-script";
+import { esNube } from "@/lib/modo";
+import { generarMiScript } from "./acciones";
 import { Titulo } from "@/components/taos/encabezado";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { urlDeLaApp } from "@/lib/correo";
@@ -18,7 +21,9 @@ const PASOS = [
 
 // Guía para conectar Gmail con un script de Google (gratis y sin dar tu contraseña a nadie)
 export default async function ConectarGmail() {
-  const clave = claveCorreos();
+  // Nube F1: en TAOS Nube cada persona crea su clave; en la versión propia, la clave sale de la llave secreta
+  const nube = esNube();
+  const clave = nube ? "nube" : claveCorreos();
   const h = await headers();
   const url = urlDeLaApp() ?? `https://${h.get("host")}`;
 
@@ -40,7 +45,7 @@ export default async function ConectarGmail() {
             </ol>
           </Card>
           <Card>
-            <Copiar texto={scriptGmail(url, clave)} />
+            {nube ? <MiClaveScript generar={generarMiScript} /> : <Copiar texto={scriptGmail(url, clave)} />}
           </Card>
           <Card>
             <CardTitle>Qué pasa con cada correo</CardTitle>

@@ -1,4 +1,5 @@
 "use server";
+import { esNube } from "@/lib/modo";
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -18,7 +19,9 @@ export async function entrarConContrasena(formulario: FormData) {
   const db = await clienteServidor();
   const { error } = await db.auth.signInWithPassword({ email: correo, password: contrasena });
   if (error) {
-    const mensaje = /invalid login/i.test(error.message)
+    const mensaje = /not confirmed/i.test(error.message)
+      ? "Primero confirma tu cuenta: abre el enlace que te mandamos por correo (revisa «Spam» si no lo ves)."
+      : /invalid login/i.test(error.message)
       ? "Correo o contraseña incorrectos. Es la misma contraseña que creaste al instalar tu primera app TAOS."
       : error.message;
     redirect(`/login?error=${encodeURIComponent(mensaje)}`);
@@ -65,6 +68,8 @@ export async function crearContrasena(formulario: FormData) {
   const contrasena = String(formulario.get("contrasena") ?? "");
   const confirmar = String(formulario.get("confirmar") ?? "");
   const volver = (mensaje: string) => redirect(`/login?error=${encodeURIComponent(mensaje)}`);
+  // Nube F3: esta puerta (crear la contraseña del dueño con la llave secreta) no existe en TAOS Nube
+  if (esNube()) volver("En TAOS Nube crea tu cuenta en «Crear cuenta».");
   if (!correoPermitido(correo)) volver("Ese correo no es el que pusiste en ALLOWED_EMAIL en Vercel. Escribe exactamente ese.");
   if (contrasena.length < 8) volver("Usa al menos 8 caracteres en tu contraseña.");
   if (contrasena !== confirmar) volver("Las dos contraseñas no coinciden. Escríbelas otra vez.");

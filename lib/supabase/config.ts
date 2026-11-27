@@ -1,3 +1,4 @@
+import { esNube } from "../modo";
 // Solo el dominio del proyecto: si se copió con una ruta (p. ej. ".../rest/v1/"), Supabase responde "Invalid path"
 function soloDominio(url: string): string {
   try {
@@ -35,5 +36,7 @@ export function correosPermitidos(): string[] {
 
 // El único correo con acceso a la app
 export function correoPermitido(correo: string | null | undefined): boolean {
+  // Nube F3: en TAOS Nube cualquiera crea su cuenta; RLS y el user_id separan los datos de cada quien
+  if (esNube()) return !!correo && correo.includes("@");
   return !!correo && correosPermitidos().includes(normalizarCorreo(correo));
 }

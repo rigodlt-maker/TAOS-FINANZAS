@@ -1,3 +1,4 @@
+import { esNube } from "./modo";
 // Asistente de la primera vez, en la pantalla de entrada. Revisa en orden:
 //   1) que las variables de Vercel estén y tengan la forma correcta (incluido el código de compra),
 //   2) que ya se haya corrido el código SQL en Supabase,
@@ -38,7 +39,10 @@ export function revisarVariables(v: Record<string, string | undefined> = process
   else if (secreta.startsWith("sb_publishable_")) problemas.push("En SUPABASE_SECRET_KEY pegaste la llave pública. Ahí va la que empieza con sb_secret_");
   else if (!pareceLlave(secreta)) problemas.push("SUPABASE_SECRET_KEY debe empezar con sb_secret_");
 
-  if (!correo) problemas.push("Falta ALLOWED_EMAIL (tu correo, el mismo con el que vas a entrar)");
+  // Nube F3: en TAOS Nube no hay un solo correo permitido
+  if (esNube()) {
+    /* sin ALLOWED_EMAIL */
+  } else if (!correo) problemas.push("Falta ALLOWED_EMAIL (tu correo, el mismo con el que vas a entrar)");
   else if (!correo.includes("@")) problemas.push("ALLOWED_EMAIL debe ser un correo, por ejemplo tunombre@gmail.com");
   return problemas;
 }
@@ -75,6 +79,8 @@ export async function pasoDeEntrada(tablas: [string, string][]): Promise<PasoEnt
       return { paso: "variables", problemas: ["No se pudo conectar con tu proyecto de Supabase. Revisa NEXT_PUBLIC_SUPABASE_URL, o espera 2 minutos si acabas de crear el proyecto."] };
     const otro = errores.find((e) => e && /api key|jwt|unauthorized|invalid/i.test(e.message));
     if (otro) return { paso: "variables", problemas: ["Supabase no aceptó tu llave secreta. Revisa que SUPABASE_SECRET_KEY esté completa y sea del mismo proyecto que la URL."] };
+    // Nube F3: no hay «dueño» que instale; cada quien crea su cuenta en /crear-cuenta
+    if (esNube()) return { paso: "entrar" };
     return puedeCrearContrasena(await buscarDueno()) ? { paso: "crear" } : { paso: "entrar" };
   } catch {
     // Si Supabase no responde, se muestra la entrada normal

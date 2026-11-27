@@ -1,3 +1,4 @@
+import { esNube } from "./modo";
 // Código de compra de TAOS: el código de tu compra en Hotmart (empieza con HP), en la variable CODIGO_COMPRA de Vercel.
 // Lo revisa el servidor de TAOS. Cada código instala cada app hasta 3 veces.
 // Si el servidor de TAOS no responde, la app sigue funcionando: una falla nuestra no debe dejarte sin tu app.
@@ -20,6 +21,8 @@ export type Licencia = { ok: true } | { ok: false; problema: string };
 export const normalizarCodigo = (codigo?: string) => (codigo ?? "").replace(/\s+/g, "").toUpperCase();
 
 export async function revisarLicencia(variables: Record<string, string | undefined> = process.env, buscar: typeof fetch = fetch): Promise<Licencia> {
+  // Nube F3: en TAOS Nube no hay código de compra; la licencia será la suscripción de Google Play (F4)
+  if (esNube()) return { ok: true };
   const codigo = normalizarCodigo(variables.CODIGO_COMPRA);
   if (!codigo) return { ok: false, problema: "Falta CODIGO_COMPRA: tu código de compra de Hotmart (empieza con HP). Viene en el correo de tu compra." };
   if (codigo.startsWith("SB_") || codigo.includes("@") || codigo.startsWith("HTTP"))

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/campos";
 import { pasoDeEntrada } from "@/lib/instalacion";
+import { esNube } from "@/lib/modo";
 import { SQL_INSTALAR } from "@/lib/sql";
 import { crearContrasena, entrarConContrasena, enviarEnlace } from "./acciones";
 
@@ -109,6 +110,12 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
               <Button type="submit">Entrar</Button>
               <p className="text-xs text-muted-foreground">Es la misma contraseña de tus otras apps TAOS.</p>
             </form>
+            {/* Nube F3: cualquiera puede crear su cuenta */}
+            {esNube() && (
+              <Link href="/crear-cuenta" className="mt-4 flex min-h-12 items-center justify-center rounded-xl border text-sm font-medium text-primary">
+                ¿Primera vez? Crea tu cuenta
+              </Link>
+            )}
             <details className="mt-5 border-t pt-4 text-sm">
               <summary className="cursor-pointer text-muted-foreground">¿Olvidaste tu contraseña? Entra con un enlace por correo</summary>
               <div className="mt-3 grid gap-3">

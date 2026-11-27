@@ -2,9 +2,10 @@ import { Resend } from "resend";
 
 const DE = process.env.RESEND_FROM || "Administrador Tao <onboarding@resend.dev>";
 
-export async function enviarCorreo(asunto: string, html: string) {
+// En modo nube cada aviso va al correo de su dueño; en modo propia, a ALLOWED_EMAIL como siempre
+export async function enviarCorreo(asunto: string, html: string, destino?: string | null) {
   const llave = process.env.RESEND_API_KEY;
-  const para = process.env.ALLOWED_EMAIL;
+  const para = destino || process.env.ALLOWED_EMAIL;
   if (!llave) throw new Error("Falta RESEND_API_KEY");
   if (!para) throw new Error("Falta ALLOWED_EMAIL");
   const { error } = await new Resend(llave).emails.send({ from: DE, to: para, subject: asunto, html });

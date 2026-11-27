@@ -1,7 +1,8 @@
 {
-  "version": "1.3.1",
-  "fecha": "2026-11-26",
+  "version": "1.3.2",
+  "fecha": "2026-11-27",
   "novedades": [
+    "Notificaciones más seguras: si cambiaste tu llave secreta, tu celular se vuelve a suscribir solo al abrir la app y no te quedas sin avisos. Si algo falla, en Notificaciones verás el botón «Activar».",
     "Nueva lupa 🔍 arriba: escribe lo que quieres hacer («tarjeta», «categorías», «préstamos»…) y te lleva directo a esa pantalla. Si no es una pantalla, se lo pregunta a Tao.",
     "Menú ordenado por grupos (Registrar, Ver mis gastos, Pagos y deudas, Ahorro, Configurar) y con su propia barra para buscar.",
     "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",

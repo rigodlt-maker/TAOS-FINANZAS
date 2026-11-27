@@ -1,4 +1,5 @@
 import { Titulo } from "@/components/taos/encabezado";
+import { MisDatos } from "@/components/mis-datos";
 import { AvisosPush } from "@/components/avisos-push";
 import { TamanoLetra } from "@/components/taos/tamano-letra";
 import { FormularioContrasena } from "@/components/contrasena";
@@ -94,6 +95,7 @@ export default async function Ajustes() {
   return (
     <div className="grid gap-4">
       <Titulo>Ajustes</Titulo>
+      <MisDatos />
       <Card id="contrasena" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>Contraseña</CardTitle>

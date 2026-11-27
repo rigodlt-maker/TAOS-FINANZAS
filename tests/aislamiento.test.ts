@@ -350,3 +350,26 @@ t(
     }
   },
 );
+
+t("Nube F1 · borrar la cuenta de A quita todas sus filas y no toca ninguna de B", async () => {
+  const { dueno, cerrar } = await base();
+  try {
+    const nombres = await conUsuario(dueno, await tablas(dueno));
+    await dueno.query("begin");
+    await sembrar(dueno, A, nombres);
+    await sembrar(dueno, B, nombres);
+    await dueno.query("commit");
+    const contar = async (u: string) => {
+      let n = 0;
+      for (const tabla of nombres) n += (await dueno.query(`select count(*)::int n from public.${tabla} where user_id = $1`, [u])).rows[0].n;
+      return n;
+    };
+    const deB = await contar(B);
+    assert.ok((await contar(A)) > 0, "la siembra de A no funcionó");
+    await dueno.query("delete from auth.users where id = $1", [A]);
+    assert.equal(await contar(A), 0);
+    assert.equal(await contar(B), deB);
+  } finally {
+    await cerrar();
+  }
+});

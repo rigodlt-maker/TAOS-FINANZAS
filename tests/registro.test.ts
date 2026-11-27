@@ -1,9 +1,9 @@
 // Nube F3 · Registro abierto de cuentas en TAOS Nube
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mensajeDeRegistro, pasaTurnstile, turnstileActivo, validarRegistro } from "../lib/registro";
+import { constanciaDeConsentimiento, mensajeDeRegistro, pasaTurnstile, turnstileActivo, validarRegistro, VERSION_AVISO } from "../lib/registro";
 
-const bien = { correo: "ana@demo.mx", contrasena: "una-clave-larga", confirmar: "una-clave-larga", acepta: true };
+const bien = { correo: "ana@demo.mx", contrasena: "una-clave-larga", confirmar: "una-clave-larga", acepta: true, sensibles: true };
 
 test("validar: correo, mínimo 8, máximo 72, que coincidan y que acepte el aviso", () => {
   assert.equal(validarRegistro(bien), null);
@@ -12,6 +12,7 @@ test("validar: correo, mínimo 8, máximo 72, que coincidan y que acepte el avis
   assert.match(validarRegistro({ ...bien, contrasena: "x".repeat(73), confirmar: "x".repeat(73) })!, /72/);
   assert.match(validarRegistro({ ...bien, confirmar: "otra-clave-larga" })!, /no coinciden/);
   assert.match(validarRegistro({ ...bien, acepta: false })!, /acepta/);
+  assert.match(validarRegistro({ ...bien, sensibles: false })!, /datos sensibles/);
 });
 
 test("mensajes: el mismo «revisa tu correo» aunque el correo ya tuviera cuenta (nadie averigua quién está registrado)", () => {
@@ -36,4 +37,9 @@ test("anti-bots (Turnstile): sin llaves no se revisa; con llaves, sin respuesta 
     throw new Error("sin red");
   }) as unknown as typeof fetch;
   assert.equal(await pasaTurnstile("token", null, llaves, falla), false);
+});
+
+test("la cuenta guarda la constancia: versión del aviso, consentimiento de datos sensibles y fecha", () => {
+  const c = constanciaDeConsentimiento(new Date("2026-11-28T12:00:00Z"));
+  assert.deepEqual(c, { consentimiento: { aviso: VERSION_AVISO, sensibles: true, fecha: "2026-11-28T12:00:00.000Z" } });
 });

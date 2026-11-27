@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { esNube } from "@/lib/modo";
-import { mensajeDeRegistro, pasaTurnstile, validarRegistro } from "@/lib/registro";
+import { constanciaDeConsentimiento, mensajeDeRegistro, pasaTurnstile, validarRegistro } from "@/lib/registro";
 import { clienteServidor } from "@/lib/supabase/servidor";
 
 export async function crearCuenta(f: FormData) {
@@ -14,6 +14,7 @@ export async function crearCuenta(f: FormData) {
     contrasena: String(f.get("contrasena") ?? ""),
     confirmar: String(f.get("confirmar") ?? ""),
     acepta: f.get("acepta") === "on",
+    sensibles: f.get("sensibles") === "on",
   };
   const problema = validarRegistro(datos);
   if (problema) volver(problema);
@@ -24,7 +25,7 @@ export async function crearCuenta(f: FormData) {
   const { error } = await (await clienteServidor()).auth.signUp({
     email: datos.correo,
     password: datos.contrasena,
-    options: { emailRedirectTo: `${origen}/auth/callback` },
+    options: { data: constanciaDeConsentimiento(), emailRedirectTo: `${origen}/auth/callback` },
   });
   const r = mensajeDeRegistro(error);
   volver(r.mensaje, r.ok);

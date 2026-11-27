@@ -3,7 +3,11 @@
 // - Anti-bots con Cloudflare Turnstile (gratis) si existen NEXT_PUBLIC_TURNSTILE_SITE_KEY y TURNSTILE_SECRET_KEY.
 // - La respuesta es la misma si el correo ya existía: así nadie puede averiguar quién tiene cuenta.
 
-export type DatosRegistro = { correo: string; contrasena: string; confirmar: string; acepta: boolean };
+export type DatosRegistro = { correo: string; contrasena: string; confirmar: string; acepta: boolean; sensibles?: boolean };
+
+// Versión del aviso de privacidad y los términos que acepta la persona (se guarda en su cuenta como constancia)
+export const VERSION_AVISO = "2026-11-28-preliminar";
+export const constanciaDeConsentimiento = (ahora = new Date()) => ({ consentimiento: { aviso: VERSION_AVISO, sensibles: true, fecha: ahora.toISOString() } });
 
 export function validarRegistro(d: DatosRegistro): string | null {
   const correo = d.correo.trim();
@@ -12,6 +16,8 @@ export function validarRegistro(d: DatosRegistro): string | null {
   if (d.contrasena.length > 72) return "Tu contraseña es demasiado larga (máximo 72 caracteres).";
   if (d.contrasena !== d.confirmar) return "Las dos contraseñas no coinciden. Escríbelas otra vez.";
   if (!d.acepta) return "Para crear tu cuenta, acepta el aviso de privacidad y los términos.";
+  // Datos sensibles (salud, finanzas, documentos de identidad): la ley pide consentimiento expreso, aparte
+  if (!d.sensibles) return "Para crear tu cuenta, autoriza el uso de tus datos sensibles (salud, finanzas y documentos).";
   return null;
 }
 

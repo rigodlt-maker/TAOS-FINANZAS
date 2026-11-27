@@ -13,7 +13,8 @@ import { test } from "node:test";
 import { Client } from "pg";
 
 const PG = process.env.TAOS_PG_URL;
-const SQL = readFileSync("supabase/instalar.sql", "utf8");
+// TAOS_SQL permite probar otro SQL (por ejemplo, el del servidor de Nube con las 4 apps juntas)
+const SQL = readFileSync(process.env.TAOS_SQL ?? "supabase/instalar.sql", "utf8");
 const A = "aaaaaaaa-0000-4000-8000-00000000000a";
 const B = "bbbbbbbb-0000-4000-8000-00000000000b";
 const BASE = `create schema auth; create table auth.users (id uuid primary key, email text);

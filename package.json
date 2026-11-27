@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "sellar": "node scripts/integridad.cjs sellar"
+    "sellar": "node scripts/integridad.cjs sellar",
+    "prueba:nube": "TAOS_SQL=supabase/nube/instalar-nube.sql tsx --test tests/aislamiento.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

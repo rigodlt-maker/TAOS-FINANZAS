@@ -14,6 +14,20 @@ function bytesDeLlave(base64url: string) {
   return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 }
 
+// ¿La suscripción de este celular se hizo con la llave actual? (después de cambiar la llave secreta, la vieja ya no sirve)
+function mismaLlave(s: PushSubscription, llave: string) {
+  const actual = s.options?.applicationServerKey;
+  if (!actual) return true; // el navegador no la informa: no se puede comparar
+  const a = new Uint8Array(actual);
+  const b = bytesDeLlave(llave);
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+async function llaveDelServidor(): Promise<string | null> {
+  const r = (await (await fetch("/api/push")).json().catch(() => ({}))) as { ok?: boolean; llave?: string };
+  return r.ok && r.llave ? r.llave : null;
+}
+
 function nombreDispositivo() {
   const ua = navigator.userAgent;
   const sistema = /iPhone|iPad/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : "Otro";
@@ -40,7 +54,19 @@ export function AvisosPush() {
         return setEstado(ios && !instalada ? "instalar" : "no-soportado");
       if (Notification.permission === "denied") return setEstado("bloqueado");
       const registro = await navigator.serviceWorker.ready;
-      setEstado((await registro.pushManager.getSubscription()) ? "activo" : "inactivo");
+      const actual = await registro.pushManager.getSubscription();
+      if (!actual) return setEstado("inactivo");
+      // Si se cambió la llave, la suscripción vieja ya no recibe nada (el servicio responde 403): se renueva sola
+      const llave = await llaveDelServidor().catch(() => null);
+      if (llave && !mismaLlave(actual, llave) && Notification.permission === "granted") {
+        const anterior = actual.endpoint;
+        await actual.unsubscribe().catch(() => {});
+        const nueva = await registro.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytesDeLlave(llave) });
+        const r = await llamar("POST", { suscripcion: nueva.toJSON(), dispositivo: nombreDispositivo(), anterior });
+        setResultado(r.ok ? { ok: true, mensaje: "Actualicé tus notificaciones a la llave nueva ✓. Toca «Enviarme una de prueba» para confirmar." } : r);
+        return setEstado(r.ok ? "activo" : "inactivo");
+      }
+      setEstado("activo");
     })().catch(() => setEstado("no-soportado"));
   }, []);
 
@@ -55,8 +81,12 @@ export function AvisosPush() {
         const { ok, llave, mensaje } = (await (await fetch("/api/push")).json()) as { ok: boolean; llave?: string; mensaje?: string };
         if (!ok || !llave) return setResultado({ ok: false, mensaje: mensaje ?? "Falta configurar las notificaciones." });
         const registro = await navigator.serviceWorker.ready;
+        // Una suscripción con otra llave impide suscribirse con la nueva: primero se quita
+        const vieja = await registro.pushManager.getSubscription();
+        const anterior = vieja && !mismaLlave(vieja, llave) ? vieja.endpoint : undefined;
+        if (anterior) await vieja!.unsubscribe().catch(() => {});
         const suscripcion = await registro.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytesDeLlave(llave) });
-        const r = await llamar("POST", { suscripcion: suscripcion.toJSON(), dispositivo: nombreDispositivo() });
+        const r = await llamar("POST", { suscripcion: suscripcion.toJSON(), dispositivo: nombreDispositivo(), anterior });
         setResultado(r);
         if (r.ok) setEstado("activo");
       } catch (e) {

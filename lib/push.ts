@@ -35,6 +35,10 @@ export function llavesDesde(base: string): { publica: string; privada: string } 
 export const pushDisponible = () => llavesVapid() !== null;
 
 // Manda el aviso a todos los celulares suscritos. Nunca lanza error: si falla, el correo sigue saliendo.
+// Respuestas del servicio de notificaciones que significan «esta suscripción ya no sirve»:
+// 404/410 (desinstalaste la app o quitaste el permiso) y 403 (se hizo con otra llave: al abrir la app se renueva sola)
+export const sinValidez = (codigo: number | undefined) => codigo === 404 || codigo === 410 || codigo === 403;
+
 export async function enviarPush(repo: Repo, avisos: Aviso | Aviso[]): Promise<{ enviados: number; fallidos: number }> {
   const lista = (Array.isArray(avisos) ? avisos : [avisos]).slice(0, 6);
   const llaves = llavesVapid();
@@ -61,8 +65,8 @@ export async function enviarPush(repo: Repo, avisos: Aviso | Aviso[]): Promise<{
       } catch (e) {
         resultado.fallidos++;
         const codigo = (e as { statusCode?: number }).statusCode;
-        // 404 o 410: el celular ya no acepta avisos (desinstalaste la app o quitaste el permiso)
-        if (codigo === 404 || codigo === 410) {
+        // 404/410: el celular ya no acepta avisos. 403: la suscripción se hizo con otra llave (se cambió la llave secreta)
+        if (sinValidez(codigo)) {
           await repo.borrarSuscripcionPush(s.endpoint).catch(() => {});
           break;
         }

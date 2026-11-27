@@ -4,7 +4,7 @@
 //      al leer Y al escribir) o los roles públicos (anon/authenticated) no tienen ningún permiso sobre ella.
 //   2. Prueba de conducta: se siembra una fila de A y, conectada como B (rol authenticated), B no la ve, no la cambia, no la
 //      borra y no puede crear filas a nombre de A. A sí ve la suya (prueba de que la siembra sirvió).
-//   3. Informe (todo, no falla): llaves foráneas por las que B podría apuntar a una fila de A. Para Nube hay que cerrarlas.
+//   3. F1: ninguna llave foránea deja ligar una fila de B a una de A, ni con la sesión de B ni con la llave secreta.
 // Las tablas se descubren solas: si mañana se agrega una tabla, entra a la prueba sin tocar este archivo.
 // Se activa con TAOS_PG_URL=postgres://usuario:clave@localhost/postgres (sin la variable, se salta).
 import assert from "node:assert/strict";
@@ -154,6 +154,8 @@ async function sembrarRonda(c: Client, usuario: string, nombres: string[], previ
         for (const fk of fks) {
           const obligatoria = fk.columnas.some((x) => cols.find((k) => k.nombre === x && !k.nulo && !k.defecto));
           if (!obligatoria) continue;
+          // F1: la llave (columna, user_id) repite a la de una sola columna; si esa columna ya tiene padre, no se vuelve a elegir
+          if (fk.columnas.filter((x) => x !== "user_id").every((x) => valores.has(x))) continue;
           const lista = todas.get(fk.tabla) ?? [];
           const i = usadas.get(fk.tabla) ?? 0;
           usadas.set(fk.tabla, i + 1);
@@ -309,7 +311,7 @@ t("Nube · conducta: B no ve, no cambia, no borra ni crea a nombre de A en ningu
 });
 
 t(
-  "Nube · informe: llaves foráneas por las que B puede apuntar a una fila de A (cerrar antes de Nube)",
+  "Nube F1 · ninguna llave foránea deja que una fila de B apunte a una fila de A (ni con la llave secreta)",
   async () => {
     const { dueno, como, cerrar } = await base();
     try {
@@ -318,18 +320,22 @@ t(
       const deA = (await sembrar(dueno, A, nombres)).sembradas;
       const deB = (await sembrar(dueno, B, nombres)).sembradas;
       await dueno.query("commit");
-      const b = await como(B);
+      // B con su sesión y, además, la llave secreta (service_role, que se salta RLS): ninguna debe poder ligar lo de B a lo de A
+      const quienes: [string, Client][] = [["sesión de B", await como(B)], ["llave secreta", await como(B, "service_role")]];
       const abiertas: string[] = [];
+      for (const [quien, b] of quienes)
       for (const tabla of nombres) {
         for (const fk of await foraneas(dueno, tabla)) {
           const padreA = deA.get(fk.tabla), filaB = deB.get(tabla);
+          // Las llaves que ya incluyen user_id son la protección misma: con ellas la fila cambiaría de dueño entera, sin quedar cruzada
+          if (fk.columnas.includes("user_id")) continue;
           if (!padreA || !filaB || !fk.refs.every((r) => r in padreA)) continue;
           const sets = fk.columnas.map((x, i) => `${x} = '${String(padreA[fk.refs[i]])}'`).join(", ");
           const llave = Object.keys(filaB).includes("id") ? `id = '${filaB.id}'` : `user_id = '${B}'`;
           try {
             await b.query("begin");
             const r = await b.query(`update public.${tabla} set ${sets} where ${llave}`);
-            if ((r.rowCount ?? 0) > 0) abiertas.push(`${tabla}.${fk.columnas.join("+")} → ${fk.tabla} de A`);
+            if ((r.rowCount ?? 0) > 0) abiertas.push(`${tabla}.${fk.columnas.join("+")} → ${fk.tabla} de A (${quien})`);
           } catch {
             /* cerrada: bien */
           } finally {
@@ -343,5 +349,4 @@ t(
       await cerrar();
     }
   },
-  { todo: true },
 );

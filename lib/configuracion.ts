@@ -18,6 +18,7 @@ export const PRUEBAS_MIGRACIONES: Record<string, [string, string]> = {
   "0007_push.sql": ["push_subscriptions", "id"],
   "0008_terminacion.sql": ["accounts", "terminacion"],
   "0009_creditos.sql": ["debts", "id"],
+  "0020_nube_duenos.sql": ["taos_migraciones", "nombre"],
 };
 
 export const faltaTabla = (e: { message: string; code?: string } | null) =>

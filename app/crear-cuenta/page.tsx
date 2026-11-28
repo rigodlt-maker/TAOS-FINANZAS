@@ -7,6 +7,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/campos";
 import { esNube } from "@/lib/modo";
 import { crearCuenta } from "./acciones";
+import { InputContrasena } from "@/components/ui/contrasena";
 
 // Se arma en cada visita: depende de TAOS_MODO, que no debe quedar fijo desde el build
 export const dynamic = "force-dynamic";
@@ -38,12 +39,13 @@ export default async function Registro({ searchParams }: { searchParams: Promise
               <Input name="correo" type="email" required autoComplete="email" placeholder="tunombre@gmail.com" />
             </Label>
             <Label>
-              Contraseña (mínimo 8 caracteres)
-              <Input name="contrasena" type="password" required minLength={8} maxLength={72} autoComplete="new-password" />
+              Crea tu contraseña TAOS (mínimo 8 caracteres)
+              <span className="text-xs font-normal text-muted-foreground">Con ella entras a las 4 apps. Toca el ojito para ver lo que escribes.</span>
+              <InputContrasena name="contrasena" required minLength={8} maxLength={72} autoComplete="new-password" />
             </Label>
             <Label>
               Escríbela otra vez
-              <Input name="confirmar" type="password" required minLength={8} maxLength={72} autoComplete="new-password" />
+              <InputContrasena name="confirmar" required minLength={8} maxLength={72} autoComplete="new-password" />
             </Label>
             <label className="flex items-start gap-3 text-sm">
               <input type="checkbox" name="acepta" required className="mt-1 size-5 shrink-0" />

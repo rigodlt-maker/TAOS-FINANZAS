@@ -1,7 +1,10 @@
 "use client";
+import { useEffect as usarEfecto } from "react";
+import { recargarSiCambioLaVersion } from "@/lib/version-vieja";
 
 // Último recurso: reemplaza la pantalla blanca de Next.js y muestra el error real
 export default function ErrorGlobal({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  usarEfecto(() => recargarSiCambioLaVersion(error), [error]);
   return (
     <html lang="es-MX">
       <body style={{ margin: 0, background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, sans-serif" }}>

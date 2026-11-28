@@ -8,6 +8,8 @@ const PUBLICAS = ["/login", "/crear-cuenta", "/auth", "/acceso-denegado", "/api/
 // Renueva la sesión de Supabase en cada visita y deja pasar solo al correo permitido
 export async function proxy(req: NextRequest) {
   if (!supabaseConfigurado()) return NextResponse.next();
+  // Un enlace de correo que cayó en la raíz (p. ej. enviado desde el panel de Supabase) se pasa a /auth/callback
+  if (req.nextUrl.pathname === "/" && req.nextUrl.searchParams.has("token_hash")) return NextResponse.redirect(new URL(`/auth/callback${req.nextUrl.search}`, req.url));
 
   let respuesta = NextResponse.next({ request: req });
   const db = createServerClient(SUPABASE_URL, SUPABASE_LLAVE_PUBLICA, {

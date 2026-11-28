@@ -12,7 +12,7 @@ import type { Resultado } from "@/lib/acciones";
 
 // Entrar con correo y contraseña (solo el correo permitido)
 export async function entrarConContrasena(formulario: FormData) {
-  const correo = String(formulario.get("correo") ?? "").trim();
+  const correo = String(formulario.get("correo") ?? "").trim().toLowerCase();
   const contrasena = String(formulario.get("contrasena") ?? "");
   if (!correoPermitido(correo)) redirect(`/acceso-denegado?correo=${encodeURIComponent(correo)}`);
   if (!(await revisarLicencia()).ok) redirect("/login");
@@ -22,7 +22,9 @@ export async function entrarConContrasena(formulario: FormData) {
     const mensaje = /not confirmed/i.test(error.message)
       ? "Primero confirma tu cuenta: abre el enlace que te mandamos por correo (revisa «Spam» si no lo ves)."
       : /invalid login/i.test(error.message)
-      ? "Correo o contraseña incorrectos. Es la misma contraseña que creaste al instalar tu primera app TAOS."
+      ? esNube()
+        ? "Correo o contraseña incorrectos. Es la contraseña que creaste con tu cuenta TAOS. Si no la recuerdas, toca «¿Olvidaste tu contraseña?» aquí abajo."
+        : "Correo o contraseña incorrectos. Es la misma contraseña que creaste al instalar tu primera app TAOS."
       : error.message;
     redirect(`/login?error=${encodeURIComponent(mensaje)}`);
   }
@@ -47,6 +49,20 @@ export async function enviarEnlace(formulario: FormData) {
     redirect(`/login?error=${encodeURIComponent(mensaje)}`);
   }
   redirect("/login?enviado=1");
+}
+
+// Nube · «¿Olvidaste tu contraseña?»: te llega un correo con un botón que te lleva a crear una nueva (/nueva-contrasena).
+// Siempre se responde lo mismo, exista o no la cuenta (así nadie puede averiguar qué correos tienen cuenta).
+export async function recuperarContrasena(formulario: FormData) {
+  if (!esNube()) redirect("/login");
+  const correo = String(formulario.get("correo") ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) redirect(`/login?error=${encodeURIComponent("Escribe tu correo completo, por ejemplo tunombre@gmail.com.")}`);
+  const h = await headers();
+  const origen = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+  const { error } = await (await clienteServidor()).auth.resetPasswordForEmail(correo, { redirectTo: `${origen}/auth/callback` });
+  if (error && /rate limit|security purposes/i.test(error.message))
+    redirect(`/login?error=${encodeURIComponent("Ya se mandaron varios correos seguidos. Espera unos minutos y usa el último que te llegó.")}`);
+  redirect("/login?recuperar=1");
 }
 
 // Crear o cambiar la contraseña de la sesión actual

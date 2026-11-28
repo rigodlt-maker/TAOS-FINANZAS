@@ -3,6 +3,7 @@
 import { cambiarContrasena } from "@/app/login/acciones";
 import { Formulario } from "./formulario";
 import { Input, Label } from "./ui/campos";
+import { InputContrasena } from "@/components/ui/contrasena";
 
 // Crear o cambiar la contraseña para entrar sin esperar el correo
 export function FormularioContrasena() {
@@ -10,11 +11,11 @@ export function FormularioContrasena() {
     <Formulario accion={cambiarContrasena} boton="Guardar contraseña" limpiar>
       <Label>
         Nueva contraseña
-        <Input name="contrasena" type="password" minLength={8} required autoComplete="new-password" />
+        <InputContrasena name="contrasena" minLength={8} required autoComplete="new-password" />
       </Label>
       <Label>
         Repítela
-        <Input name="confirmar" type="password" minLength={8} required autoComplete="new-password" />
+        <InputContrasena name="confirmar" minLength={8} required autoComplete="new-password" />
       </Label>
     </Formulario>
   );

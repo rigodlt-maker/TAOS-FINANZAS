@@ -1,9 +1,12 @@
 "use client";
+import { useEffect as usarEfecto } from "react";
+import { recargarSiCambioLaVersion } from "@/lib/version-vieja";
 
 import { useEffect } from "react";
 
 // Si algo truena, en vez de la pantalla blanca se muestra qué pasó (para poder arreglarlo) y cómo seguir
 export default function ErrorDePagina({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  usarEfecto(() => recargarSiCambioLaVersion(error), [error]);
   useEffect(() => {
     console.error(error);
   }, [error]);

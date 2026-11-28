@@ -9,8 +9,8 @@ desde la rama `nube-1` de su plantilla y con `TAOS_MODO=nube`. Tu versión propi
 
 ## 2. Supabase › Authentication
 - **Sign In / Providers › Email:** «Enable email signups» y **«Confirm email»** encendidos.
-- **URL Configuration:** *Site URL* = la dirección de Administrador Tao Nube. *Redirect URLs*: `https://<cada app>/auth/callback` (Finanzas, Fit, Cerebro) y `https://<optimizador>/login`.
-- **Emails › Templates:** pegar los 4 de `correos/` (cada archivo dice en qué plantilla va y su asunto).
+- **URL Configuration:** *Site URL* = la dirección de Administrador Tao Nube. *Redirect URLs*: `https://<cada app>/auth/callback` en las 4 (Finanzas, Fit, Cerebro y Optimizador).
+- **Emails › Templates:** pegar los 4 de `correos/` (cada archivo dice en qué plantilla va y su asunto). Sus enlaces usan `token_hash`: funcionan aunque el correo se abra en otra pestaña u otro celular, y piden un toque antes de entrar (así los revisores de enlaces de Outlook/Hotmail no los gastan).
 - **Correo propio (SMTP):** el correo de Supabase solo manda unos pocos por hora: sirve para probar, no para abrir al público. Resend (gratis) solo manda a cualquier correo con un **dominio propio verificado** (D10). Hasta entonces, el servidor es de prueba.
 
 ## 3. Variables en Vercel (las 4 apps, rama de producción `nube-1`)
